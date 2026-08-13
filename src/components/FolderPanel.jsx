@@ -1,11 +1,14 @@
 import { X } from "@phosphor-icons/react";
 import { BrandIcon, iconAppearance } from "./BrandIcon";
 
+const MAX_FOLDER_COLUMNS = 5;
+
 export function FolderPanel({ folder, onClose, onItemContextMenu }) {
   if (!folder) return null;
+  const columns = Math.max(1, Math.min(folder.children.length, MAX_FOLDER_COLUMNS));
   return (
     <div className="folder-backdrop" role="presentation" onMouseDown={onClose}>
-      <div className="folder-stage" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="folder-stage" style={{ "--folder-columns": columns }} onMouseDown={(event) => event.stopPropagation()}>
         <header className="folder-stage__header">
           <h2 id="folder-title">{folder.name}</h2>
           <button type="button" aria-label="关闭" onClick={onClose}><X size={22} /></button>
