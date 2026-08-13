@@ -1,3 +1,5 @@
+import { hasVisiblePixels } from "./image-visibility.js";
+
 function visitLinks(items, callback) {
   for (const item of items) {
     if (item.type === "folder") visitLinks(item.children ?? [], callback);
@@ -22,27 +24,6 @@ function chromeFaviconUrl(pageUrl) {
   return url.toString();
 }
 
-async function visibleImageBlob(blob) {
-  if (!blob?.size) return false;
-  try {
-    const bitmap = await createImageBitmap(blob);
-    const size = 32;
-    const canvas = new OffscreenCanvas(size, size);
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    context.clearRect(0, 0, size, size);
-    context.drawImage(bitmap, 0, 0, size, size);
-    bitmap.close();
-    const pixels = context.getImageData(0, 0, size, size).data;
-    let visible = 0;
-    for (let index = 3; index < pixels.length; index += 4) {
-      if (pixels[index] > 24) visible += 1;
-    }
-    return visible >= 12;
-  } catch {
-    return false;
-  }
-}
-
 async function blobFingerprint(blob) {
   const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -64,7 +45,7 @@ async function readChromeFavicons(sites) {
       const response = await fetch(chromeFaviconUrl(site.url));
       if (!response.ok) return;
       const blob = await response.blob();
-      if (!await visibleImageBlob(blob)) return;
+      if (!await hasVisiblePixels(blob)) return;
       if (genericFingerprint && await blobFingerprint(blob) === genericFingerprint) return;
       urls.set(site.id, { url: URL.createObjectURL(blob), source: "chrome" });
     } catch { /* Chrome may not know this site's favicon yet. */ }

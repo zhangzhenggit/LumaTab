@@ -43,8 +43,19 @@ export async function loadShortcuts(fallback) {
   }
 }
 
+function stripTransientFields(value) {
+  if (Array.isArray(value)) return value.map(stripTransientFields);
+  if (!value || typeof value !== "object") return value;
+  const clean = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (key.startsWith("_") || key === "icon") continue;
+    clean[key] = stripTransientFields(entry);
+  }
+  return clean;
+}
+
 export async function saveShortcuts(shortcuts) {
-  const persisted = JSON.parse(JSON.stringify(shortcuts, (key, value) => key.startsWith("_") || key === "icon" ? undefined : value));
+  const persisted = stripTransientFields(shortcuts);
   if (hasChromeStorage()) {
     await chrome.storage.local.set({ [DATA_KEY]: persisted });
     return;

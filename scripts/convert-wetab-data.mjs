@@ -1,7 +1,7 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
-const [, , sourceArg, outputArg = "src/data/imported-shortcuts.json"] = process.argv;
+const [, , sourceArg, outputArg = "public/data/imported-shortcuts.json"] = process.argv;
 if (!sourceArg) {
   throw new Error("Usage: node scripts/convert-wetab-data.mjs <wetab.data> [output.json]");
 }
@@ -66,6 +66,7 @@ const parsed = JSON.parse(await readFile(sourcePath, "utf8"));
 const categories = parsed?.data?.["store-icon"]?.icons ?? [];
 const sourceItems = categories.flatMap((category) => category?.children ?? []);
 const converted = convert(sourceItems);
+await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(converted, null, 2)}\n`, "utf8");
 
 const folderCount = converted.filter((item) => item.type === "folder").length;

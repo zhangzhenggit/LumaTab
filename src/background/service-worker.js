@@ -1,4 +1,5 @@
 import { pageDeclaredCandidates, safeWebUrl, sanitizeSvg } from "../lib/icon-discovery.js";
+import { hasVisiblePixels } from "../lib/image-visibility.js";
 
 const BING_ENDPOINT =
   "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=7&mkt=zh-CN";
@@ -118,26 +119,6 @@ async function verifiedIconBlob(response) {
   if (!type.includes("svg") && !type.includes("xml")) return null;
   const svg = sanitizeSvg(await blob.text());
   return svg && await hasVisiblePixels(svg) ? svg : null;
-}
-
-async function hasVisiblePixels(blob) {
-  try {
-    const bitmap = await createImageBitmap(blob);
-    const size = 32;
-    const canvas = new OffscreenCanvas(size, size);
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    context.clearRect(0, 0, size, size);
-    context.drawImage(bitmap, 0, 0, size, size);
-    bitmap.close();
-    const pixels = context.getImageData(0, 0, size, size).data;
-    let visible = 0;
-    for (let index = 3; index < pixels.length; index += 4) {
-      if (pixels[index] > 24) visible += 1;
-    }
-    return visible >= 12;
-  } catch {
-    return false;
-  }
 }
 
 async function fetchIconCandidate(url) {
@@ -305,11 +286,22 @@ async function resolveBackground({ forceArchive = false, advance = false } = {})
   }
 }
 
+async function pruneStaleCaches(currentNames) {
+  const names = await caches.keys();
+  await Promise.all(names
+    .filter((name) => name.startsWith("lumatab-") && !currentNames.includes(name))
+    .map((name) => caches.delete(name)));
+}
+
+async function pruneStaleStorageKeys(prefix, currentKey) {
+  const stored = await chrome.storage.local.get(null);
+  const staleKeys = Object.keys(stored).filter((key) => key.startsWith(prefix) && key !== currentKey);
+  if (staleKeys.length) await chrome.storage.local.remove(staleKeys);
+}
+
 chrome.runtime.onInstalled.addListener(() => {
-  void caches.delete("lumatab-site-icons-v6");
-  void caches.delete("lumatab-site-icons-v7");
-  void chrome.storage.local.remove("lumatab.site-icon-failures.v6");
-  void chrome.storage.local.remove("lumatab.site-icon-failures.v7");
+  void pruneStaleCaches([CACHE_NAME, ICON_CACHE_NAME]);
+  void pruneStaleStorageKeys("lumatab.site-icon-failures.", ICON_FAILURE_KEY);
   void resolveBackground({ forceArchive: true });
 });
 

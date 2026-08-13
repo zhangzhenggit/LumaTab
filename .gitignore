@@ -10,7 +10,7 @@ AGENTS.md
 
 # Personal shortcut exports and converted data
 *.data
-src/data/imported-shortcuts.json
+public/data/imported-shortcuts.json
 
 # Editor and OS files
 .idea/
