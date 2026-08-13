@@ -1,0 +1,20 @@
+node_modules/
+dist/
+
+# Local development output
+*.log
+.vite-preview*.log
+audit-icons-*/
+design-qa.md
+AGENTS.md
+
+# Personal shortcut exports and converted data
+*.data
+src/data/imported-shortcuts.json
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
