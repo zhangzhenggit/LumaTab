@@ -1,29 +1,44 @@
 import { Plus } from "@phosphor-icons/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { BrandIcon, iconAppearance } from "./BrandIcon";
+import { BrandIcon, iconAppearance, PREVIEW_CSS_PX } from "./BrandIcon";
 
-function surfaceProps(item) {
-  const appearance = iconAppearance(item);
+export function iconProps(item) {
+  const { kind, accent } = iconAppearance(item);
   return {
-    className: `shortcut__surface ${item.type === "folder" ? "shortcut__surface--folder" : ""} shortcut__surface--${appearance.kind}`,
-    style: appearance.surface ? { "--tile-accent": appearance.surface } : undefined,
+    className: `shortcut__icon shortcut__icon--${kind}`,
+    style: accent ? { "--tile-accent": accent } : undefined,
   };
 }
 
-function TileContent({ item }) {
-  if (item.type !== "folder") return <BrandIcon item={item} />;
+function FolderPreview({ folder }) {
   return (
     <span className="folder-preview" aria-hidden="true">
-      {item.children.slice(0, 4).map((child) => (
-        <span
-          className={`folder-preview__cell folder-preview__cell--${iconAppearance(child).kind}`}
-          style={iconAppearance(child).surface ? { "--tile-accent": iconAppearance(child).surface } : undefined}
-          key={child.id}
-        ><BrandIcon item={child} compact /></span>
-      ))}
+      {folder.children.slice(0, 4).map((child) => {
+        const { kind, accent } = iconAppearance(child, PREVIEW_CSS_PX);
+        return (
+          <span
+            className={`folder-preview__cell folder-preview__cell--${kind}`}
+            style={accent ? { "--tile-accent": accent } : undefined}
+            key={child.id}
+          ><BrandIcon item={child} compact /></span>
+        );
+      })}
     </span>
   );
+}
+
+function TileFace({ item, dropMode }) {
+  return (
+    <div {...iconProps(item)}>
+      {item.type === "folder" ? <FolderPreview folder={item} /> : <BrandIcon item={item} />}
+      {dropMode && <span className="shortcut__drop-label">{dropMode === "folder" ? "放入" : "成组"}</span>}
+    </div>
+  );
+}
+
+function TileLabel({ name }) {
+  return <div className="shortcut__label"><span className="shortcut__name">{name}</span></div>;
 }
 
 export function ShortcutTile({ item, onActivate, onContextMenu, dropMode }) {
@@ -33,7 +48,7 @@ export function ShortcutTile({ item, onActivate, onContextMenu, dropMode }) {
   function keyDown(event) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      onActivate(item);
+      onActivate(item, event);
     }
   }
 
@@ -45,17 +60,14 @@ export function ShortcutTile({ item, onActivate, onContextMenu, dropMode }) {
       role="link"
       tabIndex="0"
       aria-label={item.type === "folder" ? `打开分组 ${item.name}` : `打开 ${item.name}`}
-      onClick={() => onActivate(item)}
+      onClick={(event) => onActivate(item, event)}
       onContextMenu={(event) => onContextMenu(event, item)}
       onKeyDown={keyDown}
       {...attributes}
       {...listeners}
     >
-      <div {...surfaceProps(item)}>
-        <TileContent item={item} />
-        {dropMode && <span className="shortcut__drop-label">{dropMode === "folder" ? "放入" : "成组"}</span>}
-      </div>
-      <span className="shortcut__name">{item.name}</span>
+      <TileFace item={item} dropMode={dropMode} />
+      <TileLabel name={item.name} />
     </div>
   );
 }
@@ -63,17 +75,18 @@ export function ShortcutTile({ item, onActivate, onContextMenu, dropMode }) {
 export function ShortcutGhost({ item }) {
   return (
     <div className="shortcut shortcut--overlay">
-      <div {...surfaceProps(item)}><TileContent item={item} /></div>
-      <span className="shortcut__name">{item.name}</span>
+      <TileFace item={item} />
+      <TileLabel name={item.name} />
     </div>
   );
 }
 
+// No label: an unnamed "+" is what closes the row in WeTab, and a caption under it would read
+// as one more site rather than as the affordance to add one.
 export function AddTile({ onClick }) {
   return (
-    <button className="shortcut shortcut--button" type="button" onClick={onClick}>
-      <span className="shortcut__surface shortcut__surface--add"><Plus size={30} weight="light" aria-hidden="true" /></span>
-      <span className="shortcut__name">添加</span>
+    <button className="shortcut" type="button" aria-label="添加快捷方式" onClick={onClick}>
+      <span className="shortcut__icon shortcut__icon--add"><Plus size={24} weight="regular" aria-hidden="true" /></span>
     </button>
   );
 }
