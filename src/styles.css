@@ -307,15 +307,20 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    60px channel between two icons no matter which of the two tiles is carrying it. */
 .shortcut__caret {
   position: absolute;
-  /* Full cell height, not just the icon band: the drag ghost sits right on top of the caret
-     while you aim, so it has to stick out above and below the ghost to stay readable. */
-  top: 4px;
+  /* Exactly as tall as the icons it sits between. A full-cell bar reached past the label and
+     read as a divider for the whole row rather than as one insertion point. */
+  top: var(--cell-pad-y);
   width: 4px;
-  height: calc(var(--cell-size) - 8px);
+  height: var(--icon-size);
   border-radius: 2px;
   background: rgba(255, 255, 255, .95);
   box-shadow: 0 0 12px rgba(0, 0, 0, .45);
   pointer-events: none;
+  /* Above the drag overlay (dnd-kit parks it at z-index 999). Sized to the icon it sits beside,
+     the caret would otherwise be hidden by the tile being dragged, since the ghost follows the
+     cursor and the cursor is right next to the caret. Where the tile lands matters more at that
+     moment than seeing the tile itself. */
+  z-index: 1000;
   animation: caret-in 140ms ease;
 }
 .shortcut__caret--before { left: -2px; }
