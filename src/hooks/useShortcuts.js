@@ -3,7 +3,13 @@ import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { createId, normalizeUrl } from "../lib/icons";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
-import { prepareSiteIcons, refreshSiteIcons } from "../lib/site-icon-cache";
+import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
+
+function countLinks(items) {
+  return items.reduce((total, item) => item.type === "folder"
+    ? total + (item.children?.length ?? 0)
+    : total + 1, 0);
+}
 
 const MERGE_HOLD_MS = 650;
 const DEFAULT_SHORTCUTS_URL = "/data/imported-shortcuts.json";
@@ -19,10 +25,34 @@ async function loadDefaultShortcuts() {
   }
 }
 
-function countMissingIcons(items) {
-  return items.reduce((total, item) => item.type === "folder"
-    ? total + countMissingIcons(item.children ?? [])
-    : total + (item.iconMode !== "generated" && item._iconSource !== "cache" ? 1 : 0), 0);
+// Accepts a plain array of items exported by this extension, rejecting anything whose shape we
+// cannot render. Import replaces or merges live data, so a malformed file must fail loudly here
+// rather than half-apply and leave the grid in a state the user cannot undo.
+export function validateShortcutPayload(payload) {
+  const items = Array.isArray(payload) ? payload : payload?.shortcuts;
+  if (!Array.isArray(items)) throw new Error("文件格式不正确：应为快捷方式数组");
+
+  const clean = (list, depth = 0) => list.map((item) => {
+    if (!item || typeof item !== "object") throw new Error("文件中包含无法识别的条目");
+    const name = String(item.name ?? "").trim();
+    if (!name) throw new Error("文件中有条目缺少名称");
+    if (item.type === "folder") {
+      if (depth > 0) throw new Error("不支持嵌套分组");
+      const children = Array.isArray(item.children) ? item.children : [];
+      return { id: createId(), type: "folder", name, children: clean(children, depth + 1) };
+    }
+    return {
+      id: createId(),
+      type: "link",
+      name,
+      url: normalizeUrl(String(item.url ?? "")),
+      iconMode: item.iconMode === "generated" ? "generated" : "auto",
+    };
+  });
+
+  const result = clean(items);
+  if (!result.length) throw new Error("文件中没有任何快捷方式");
+  return result;
 }
 
 export function useShortcuts(notify) {
@@ -32,6 +62,8 @@ export function useShortcuts(notify) {
   const [overId, setOverId] = useState(null);
   const [mergeReadyId, setMergeReadyId] = useState(null);
   const mergeTimerRef = useRef(null);
+  const shortcutsRef = useRef(shortcuts);
+  shortcutsRef.current = shortcuts;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   useEffect(() => {
@@ -40,6 +72,19 @@ export function useShortcuts(notify) {
       if (!disposed) { setShortcuts(stored); setReady(true); }
     });
     return () => { disposed = true; };
+  }, []);
+
+  // First paint shows whatever is already cached; the worker keeps resolving afterwards, so
+  // adopt its results as soon as it reports completion rather than making the user open a new
+  // tab to see sharp icons.
+  useEffect(() => {
+    let disposed = false;
+    const unsubscribe = subscribeToIconUpdates(() => {
+      void applyCachedSiteIcons(shortcutsRef.current).then((next) => {
+        if (!disposed && next !== shortcutsRef.current) setShortcuts(next);
+      });
+    });
+    return () => { disposed = true; unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -117,7 +162,7 @@ export function useShortcuts(notify) {
 
   function addLink(values) {
     if (!values.name) throw new Error("请输入名称");
-    const link = { id: createId("link"), type: "link", name: values.name, url: normalizeUrl(values.url), iconMode: values.iconMode };
+    const link = { id: createId("link"), type: "link", name: values.name, url: normalizeUrl(values.url), iconMode: values.iconMode, accentColor: values.accentColor ?? null, monogram: values.monogram ?? null };
     setShortcuts((current) => [...current, link]);
     if (link.iconMode === "auto") {
       void prepareSiteIcons([link]).then(([prepared]) => {
@@ -137,6 +182,8 @@ export function useShortcuts(notify) {
         name: values.name,
         url: nextUrl,
         iconMode: values.iconMode,
+        accentColor: values.accentColor ?? null,
+        monogram: values.monogram ?? null,
         _iconUrl: nextUrl === link.url ? link._iconUrl : undefined,
       };
     };
@@ -182,6 +229,32 @@ export function useShortcuts(notify) {
     notify("已移出分组");
   }
 
+  // Import lands through one of these two. Icons are resolved for whatever arrives so imported
+  // links do not sit on letter tiles until the next page load.
+  function adoptImported(next, message) {
+    setShortcuts(next);
+    void prepareSiteIcons(next).then((prepared) => setShortcuts(prepared));
+    notify(message);
+  }
+
+  function replaceAll(items) {
+    adoptImported(items, `已导入 ${countLinks(items)} 个链接`);
+  }
+
+  function mergeIn(items) {
+    const existing = new Set();
+    const collect = (list) => list.forEach((item) => item.type === "folder"
+      ? collect(item.children ?? [])
+      : existing.add(item.url));
+    collect(shortcutsRef.current);
+    const fresh = items.filter((item) => item.type === "folder" || !existing.has(item.url));
+    if (!fresh.length) {
+      notify("没有新的链接需要导入");
+      return;
+    }
+    adoptImported([...shortcutsRef.current, ...fresh], `已合并 ${countLinks(fresh)} 个链接`);
+  }
+
   function dissolveFolder(ref) {
     setShortcuts((current) => {
       const folderIndex = current.findIndex((item) => item.id === ref.itemId);
@@ -191,23 +264,12 @@ export function useShortcuts(notify) {
     notify("分组已解散");
   }
 
-  async function reloadIcons() {
-    const missingBefore = countMissingIcons(shortcuts);
-    if (!missingBefore) {
-      notify("当前网站图标均已获取");
-      return;
-    }
-    notify(`正在查找 ${missingBefore} 个高清图标…`);
-    const refreshed = await refreshSiteIcons(shortcuts);
-    setShortcuts(refreshed);
-    const recovered = missingBefore - countMissingIcons(refreshed);
-    notify(recovered ? `已升级 ${recovered} 个高清图标` : "暂未找到更高清的图标");
-  }
 
   return {
     shortcuts, ready, ids, sensors,
     activeId, mergeReadyId,
     dragStart, dragOver, dragEnd, resetDragState,
-    addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder, reloadIcons,
+    addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
+    replaceAll, mergeIn,
   };
 }
