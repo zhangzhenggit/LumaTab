@@ -21,7 +21,7 @@ export function App({ initialWallpaper = null }) {
   const { wallpaper, backgroundMeta, tuning, photoLuminance } = wallpaperApi;
   const shortcutsApi = useShortcuts(notify);
   const { shortcuts, ready, sensors, activeId, mergeReadyId, dropIndicator } = shortcutsApi;
-  const siteAccess = useSiteAccess(shortcuts, ready, notify);
+  const siteAccess = useSiteAccess(shortcuts, ready);
 
   const [addDialog, setAddDialog] = useState(false);
   const [editor, setEditor] = useState(null);
@@ -119,6 +119,9 @@ export function App({ initialWallpaper = null }) {
         }}
       />
       <div className="scrim scrim--top" /><div className="scrim scrim--bottom" />
+      {siteAccess.showPrompt && (
+        <SiteAccessPrompt onGrant={siteAccess.grant} onDismiss={siteAccess.dismiss} />
+      )}
       <div className="newtab__content">
         <SearchBar />
         {/* No SortableContext: the grid is a static target for the whole drag, and every drop is
@@ -141,9 +144,6 @@ export function App({ initialWallpaper = null }) {
           </section>
           <DragOverlay dropAnimation={null}>{activeItem ? <ShortcutGhost item={activeItem} /> : null}</DragOverlay>
         </DndContext>
-        {siteAccess.showPrompt && (
-          <SiteAccessPrompt onGrant={siteAccess.grant} onDismiss={siteAccess.dismiss} />
-        )}
       </div>
       {backgroundMeta?.copyright && <a className="photo-credit" href={backgroundMeta.copyrightLink} title={backgroundMeta.copyright}>{backgroundMeta.title || "Bing 每日图"}</a>}
       <AddLinkDialog open={addDialog} onClose={() => setAddDialog(false)} onSubmit={addLink} />

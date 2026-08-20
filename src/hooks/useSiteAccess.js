@@ -31,7 +31,7 @@ async function writeDismissed() {
 // already is. This drives a one-click prompt on the new tab itself, shown exactly when it means
 // something (there are links, and their icons are stuck on Chrome's small stand-ins), instead of
 // making the user go hunting through Settings for a switch they were never told about.
-export function useSiteAccess(shortcuts, ready, notify) {
+export function useSiteAccess(shortcuts, ready) {
   const [granted, setGranted] = useState(null);
   const [dismissed, setDismissed] = useState(true);
   const shortcutsRef = useRef(shortcuts);
@@ -53,16 +53,16 @@ export function useSiteAccess(shortcuts, ready, notify) {
     const ok = await requestSiteAccess();
     setGranted(ok);
     if (!ok) return false;
-    notify?.("已允许读取网站，正在重新抓取图标");
+    // No toast: the prompt vanishing and the icons sharpening say it, and Chrome has just shown
+    // its own permission dialog — a third confirmation of the same click is noise.
     void refreshSiteIcons(shortcutsRef.current);
     return true;
-  }, [notify]);
+  }, []);
 
   const revoke = useCallback(async () => {
     await revokeSiteAccess();
     setGranted(false);
-    notify?.("已收回网站访问权限，图标改用 Chrome 已有的记录");
-  }, [notify]);
+  }, []);
 
   const dismiss = useCallback(() => {
     setDismissed(true);
