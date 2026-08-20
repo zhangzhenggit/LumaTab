@@ -3,7 +3,7 @@ import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { createId, normalizeUrl } from "../lib/icons";
 import { collapseThinFolders } from "../lib/shortcuts-tree";
-import { canMerge, MERGE_HOLD_MS } from "../lib/drag-merge";
+import { canMerge, holdFor } from "../lib/drag-merge";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
@@ -139,7 +139,7 @@ export function useShortcuts(notify) {
       overRect: event.over.rect,
     })) return;
 
-    mergeTimerRef.current = setTimeout(() => setMergeReadyId(nextOverId), MERGE_HOLD_MS);
+    mergeTimerRef.current = setTimeout(() => setMergeReadyId(nextOverId), holdFor(target?.type));
   }
 
 

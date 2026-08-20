@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canMerge, hasSettled, MERGE_HOLD_MS, MOVE_TOLERANCE_PX, overlapRatio } from "../src/lib/drag-merge.js";
+import { canMerge, FOLDER_HOLD_MS, hasSettled, holdFor, MERGE_HOLD_MS, MOVE_TOLERANCE_PX, overlapRatio } from "../src/lib/drag-merge.js";
 
 const tile = (left, top) => ({ left, top, width: 60, height: 60 });
 
@@ -28,6 +28,16 @@ test("a merge needs the pointer to come to rest", () => {
   // No previous sample means the drag just started; nothing has settled yet.
   assert.equal(hasSettled(null, { x: 0, y: 0 }), false);
   assert.ok(MOVE_TOLERANCE_PX > 0 && MERGE_HOLD_MS >= 400);
+});
+
+test("joining an existing folder is quicker than creating a new one", () => {
+  // Creating a folder restructures the grid; dropping into one that already exists does not, and
+  // making both wait the same 600ms turned a previously instant gesture into a broken-feeling one.
+  assert.equal(holdFor("folder"), FOLDER_HOLD_MS);
+  assert.equal(holdFor("link"), MERGE_HOLD_MS);
+  assert.ok(FOLDER_HOLD_MS < MERGE_HOLD_MS);
+  // Still long enough that sweeping past a folder to reorder cannot arm it.
+  assert.ok(FOLDER_HOLD_MS >= 150);
 });
 
 test("folders reorder like anything else and never swallow a passing tile", () => {

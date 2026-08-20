@@ -9,7 +9,16 @@
 // The original code had the hold timer but never reset it on movement, and armed it only when the
 // target changed. Every deliberate drop pauses over its destination for longer than the hold, so
 // the merge armed itself on the final target nearly every time and reordering became impossible.
+// Creating a folder out of two loose links restructures the grid, so it asks for a deliberate
+// pause. Dropping into a folder that already exists does not: a folder is a container, the intent
+// is unambiguous, and undoing it is one drag. Making both wait the same 600ms turned a gesture
+// that used to be instant into one that felt broken.
 export const MERGE_HOLD_MS = 600;
+export const FOLDER_HOLD_MS = 220;
+
+export function holdFor(targetType) {
+  return targetType === "folder" ? FOLDER_HOLD_MS : MERGE_HOLD_MS;
+}
 // Below this the pointer counts as parked; a real drag moves far more than this between events.
 export const MOVE_TOLERANCE_PX = 4;
 // Guards against arming while hovering the gap between two tiles rather than a tile itself.
