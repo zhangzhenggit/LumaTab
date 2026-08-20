@@ -12,6 +12,10 @@ AGENTS.md
 *.data
 public/data/
 
+# Temporary build and browser profile used by the screenshot script; removed after each run.
+.shot-build/
+.shot-profile/
+
 # Editor and OS files
 .idea/
 .vscode/

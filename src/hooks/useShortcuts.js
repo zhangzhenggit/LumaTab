@@ -79,9 +79,17 @@ export function useShortcuts(notify) {
 
   useEffect(() => {
     let disposed = false;
-    void loadShortcuts().then(prepareSiteIcons).then((stored) => {
-      if (!disposed) { setShortcuts(stored); setReady(true); }
-    });
+    // Icon preparation is best-effort decoration on top of the links. If anything in that stage
+    // rejects, fall back to the stored links untouched — a grid with letter tiles beats a blank
+    // page, and `ready` must be set either way or the grid never fades in at all.
+    void loadShortcuts()
+      .then((stored) => prepareSiteIcons(stored).catch((error) => {
+        console.warn("LumaTab: icon preparation failed, showing links without icons", error);
+        return stored;
+      }))
+      .then((stored) => {
+        if (!disposed) { setShortcuts(stored); setReady(true); }
+      });
     return () => { disposed = true; };
   }, []);
 

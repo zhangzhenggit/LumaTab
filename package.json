@@ -7,11 +7,12 @@
     "dev": "vite",
     "build": "vite build && node scripts/prepare-sites-build.mjs",
     "build:extension": "vite build",
-    "test": "node --test tests/icons.test.mjs tests/cache-keys.test.mjs tests/html-icon-parser.test.mjs tests/wallpaper.test.mjs tests/wallpaper-flow.test.mjs tests/shortcuts-tree.test.mjs tests/drag-plan.test.mjs tests/manifest.test.mjs tests/site-access.test.mjs",
+    "test": "node --test tests/icons.test.mjs tests/cache-keys.test.mjs tests/html-icon-parser.test.mjs tests/wallpaper.test.mjs tests/wallpaper-flow.test.mjs tests/shortcuts-tree.test.mjs tests/drag-plan.test.mjs tests/manifest.test.mjs tests/site-access.test.mjs tests/resilience.test.mjs",
     "preview": "vite preview",
     "test:sites": "node --test tests/sites-worker.test.mjs",
     "icons": "node scripts/make-extension-icons.mjs",
-    "package": "npm run build:extension && node scripts/package-extension.mjs"
+    "package": "npm run build:extension && node scripts/package-extension.mjs",
+    "store:assets": "npm run build:extension && node scripts/capture-store-assets.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

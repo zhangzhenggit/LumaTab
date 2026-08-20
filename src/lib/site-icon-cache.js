@@ -27,21 +27,36 @@ async function iconCacheRequest(pageUrl) {
   return new Request(`https://cache.lumatab.invalid/site-icons/${await urlHash(normalized)}`);
 }
 
+// Icons are decoration; the grid is the product. Cache Storage can fail outright — a corrupt
+// profile answers `caches.open` with "Unexpected internal error", and a disk-full or evicted
+// profile can do the same — and when it did, the rejection propagated out of prepareSiteIcons
+// and through the load chain in useShortcuts, so `setShortcuts` never ran and the user's entire
+// grid rendered empty. Losing the icons is survivable; losing the links is not.
 async function readCachedIcons(sites) {
-  const cache = await caches.open(ICON_CACHE_NAME);
   const urls = new Map();
+  let cache;
+  try {
+    cache = await caches.open(ICON_CACHE_NAME);
+  } catch (error) {
+    console.warn("LumaTab: icon cache unavailable, showing letter tiles", error);
+    return urls;
+  }
   await Promise.all(sites.map(async (site) => {
-    const response = await cache.match(await iconCacheRequest(site.url));
-    if (!response) return;
-    const blob = await response.blob();
-    if (!blob.size) return;
-    urls.set(site.id, {
-      url: URL.createObjectURL(blob),
-      source: "cache",
-      accent: response.headers.get("x-lumatab-accent"),
-      nativeSize: Number(response.headers.get("x-lumatab-native-size")) || 0,
-      fullBleed: response.headers.get("x-lumatab-full-bleed") === "1",
-    });
+    try {
+      const response = await cache.match(await iconCacheRequest(site.url));
+      if (!response) return;
+      const blob = await response.blob();
+      if (!blob.size) return;
+      urls.set(site.id, {
+        url: URL.createObjectURL(blob),
+        source: "cache",
+        accent: response.headers.get("x-lumatab-accent"),
+        nativeSize: Number(response.headers.get("x-lumatab-native-size")) || 0,
+        fullBleed: response.headers.get("x-lumatab-full-bleed") === "1",
+      });
+    } catch {
+      // One unreadable entry must not cost the other tiles their icons.
+    }
   }));
   return urls;
 }
