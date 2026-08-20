@@ -5,8 +5,17 @@
   "version": "0.9.0",
   "description": "以 Bing 每日图、Google 搜索和可拖放快捷分组组成的轻量新标签页。",
   "minimum_chrome_version": "109",
-  "permissions": ["storage", "favicon"],
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "permissions": [
+    "storage",
+    "favicon"
+  ],
+  "host_permissions": [
+    "https://www.bing.com/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "chrome_url_overrides": {
     "newtab": "index.html"
   },

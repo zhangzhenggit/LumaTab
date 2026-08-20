@@ -21,6 +21,12 @@ function installChromeStub() {
         remove: async () => {},
       },
     },
+    // Site access is an optional permission; the worker asks about it before probing any site
+    // and listens for it being granted. Denied here, which is the state a fresh install is in.
+    permissions: {
+      contains: async () => false,
+      onAdded: { addListener() {} },
+    },
   };
   globalThis.caches = {
     open: async () => ({ match: async () => null, put: async () => {}, keys: async () => [] }),

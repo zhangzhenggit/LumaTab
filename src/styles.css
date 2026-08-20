@@ -525,8 +525,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .context-menu .context-menu__danger { color: #ff3b30; }
 
 .photo-credit {
+  /* 左下角：右下角让给设置按钮，两者各占一角，互不遮挡。 */
   position: fixed;
-  right: 16px;
+  left: 16px;
   bottom: 14px;
   max-width: 280px;
   overflow: hidden;
@@ -873,7 +874,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   position: fixed;
   z-index: 12;
   bottom: 16px;
-  left: 16px;
+  right: 16px;
   display: grid;
   width: 36px;
   height: 36px;

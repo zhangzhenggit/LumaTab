@@ -73,6 +73,24 @@ export async function prepareSiteIcons(items) {
   return applyIconUrls(items, cachedUrls);
 }
 
+// Re-resolves everything, ignoring what is already cached. Used after the user grants site
+// access: the tiles resolved before the grant hold Chrome's small stand-ins, and those are cached,
+// so the normal "only fetch what is missing" path would leave every one of them as it was.
+export async function refreshSiteIcons(items) {
+  if (!globalThis.chrome?.runtime?.sendMessage) return;
+  const sites = [];
+  visitLinks(items, (item) => {
+    if (item.iconMode !== "generated") sites.push({ id: item.id, url: item.url });
+  });
+  if (!sites.length) return;
+  await chrome.runtime.sendMessage({
+    type: "LUMATAB_RESOLVE_SITE_ICONS",
+    sites,
+    refresh: true,
+    devicePixelRatio: globalThis.devicePixelRatio || 1,
+  }).catch((error) => console.warn("LumaTab: icon refresh failed", error));
+}
+
 // Resolves one URL on demand and waits for the answer, for the add/edit dialog's "fetch icon"
 // button. Everywhere else resolution is fire-and-forget, but here the user explicitly asked and
 // is watching a preview, so the wait is the point — and doing it before the link is saved means
@@ -114,7 +132,7 @@ const ICON_PREVIEW_TIMEOUT_MS = 15_000;
 export function subscribeToIconUpdates(onUpdated) {
   if (!globalThis.chrome?.runtime?.onMessage) return () => {};
   const listener = (message) => {
-    if (message?.type === "LUMATAB_ICONS_UPDATED") onUpdated();
+    if (message?.type === "LUMATAB_ICONS_UPDATED") onUpdated(message.diagnostics ?? {});
   };
   chrome.runtime.onMessage.addListener(listener);
   return () => chrome.runtime.onMessage.removeListener(listener);
@@ -126,11 +144,13 @@ export function subscribeToIconUpdates(onUpdated) {
 // Only tiles that have nothing yet are filled in. Once a tile has drawn an icon it keeps it for
 // the life of the page: re-reading the cache would hand back an identical image under a fresh
 // blob URL, and swapping the src makes every already-correct tile flash for no visible gain.
-export async function applyCachedSiteIcons(items) {
+// `force` exists for one case: the user has just granted site access, so tiles already showing
+// Chrome's small stand-in have to be replaced by the real artwork. The flash is the point there.
+export async function applyCachedSiteIcons(items, { force = false } = {}) {
   if (!globalThis.caches) return items;
   const sites = [];
   visitLinks(items, (item) => {
-    if (item.iconMode !== "generated" && !item._iconUrl) sites.push({ id: item.id, url: item.url });
+    if (item.iconMode !== "generated" && (force || !item._iconUrl)) sites.push({ id: item.id, url: item.url });
   });
   if (!sites.length) return items;
   const cachedUrls = await readCachedIcons(sites);

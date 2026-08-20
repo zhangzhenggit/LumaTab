@@ -8,9 +8,9 @@ audit-icons-*/
 design-qa.md
 AGENTS.md
 
-# Personal shortcut exports and converted data
+# Personal shortcut exports
 *.data
-public/data/imported-shortcuts.json
+public/data/
 
 # Editor and OS files
 .idea/

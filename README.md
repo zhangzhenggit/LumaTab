@@ -57,16 +57,13 @@ npm run build:extension
 npm run icons           # 重新生成扩展图标（16/32/48/128）
 ```
 
-如需转换 WeTab 导出文件，可以输出到本机任意 JSON 文件，再通过自己的初始化逻辑使用；个人书签文件已被 Git 忽略：
-
-```powershell
-npm run convert:wetab -- "C:\path\to\wetab.data" "C:\path\to\shortcuts.json"
-```
-
 构建后的可加载扩展位于 `dist/client`。在 `chrome://extensions` 开启开发者模式，选择“加载已解压的扩展程序”，指向该目录。
 
 ## 权限说明
 
-- `storage`：保存用户的分区、链接和文件夹结构。
-- `http://*/*`、`https://*/*`：新标签页读取用户添加网站公开声明的图标并写入本地缓存；不修改网页内容。
-- `https://www.bing.com/*`：获取 Bing 每日图片 JSON 与图片文件，不读取其他站点内容。
+安装时只申请两项必需权限，浏览网站的权限是可选的、默认不申请。
+
+- `storage`：保存快捷方式、分组结构和壁纸设置，全部存在本机。
+- `favicon`：读取 Chrome 自己已经存有的网站图标，无需访问任何网站。
+- `https://www.bing.com/*`（必需）：获取 Bing 每日图 JSON 与图片文件；这是唯一在安装时申请的站点权限。
+- `http://*/*`、`https://*/*`（可选，默认未授权）：抓取各站点自己声明的高清图标，只做 GET，不修改任何网页。未授权时图标改用 `favicon` 提供的记录（通常 16/32px），功能不中断。可在设置面板的「网站图标」里随时授予或收回。

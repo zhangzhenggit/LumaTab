@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowClockwise, Check, DownloadSimple, UploadSimple, X } from "@phosphor-icons/react";
+import { ArrowClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@phosphor-icons/react";
 import { wallpaperThumbnail } from "../lib/background";
 import { GRADIENTS, gradientCss } from "../lib/background-cache-keys";
 import { validateShortcutPayload } from "../hooks/useShortcuts";
+import { hasSiteAccess, requestSiteAccess, revokeSiteAccess } from "../lib/site-access";
+import { refreshSiteIcons } from "../lib/site-icon-cache";
 
 function formatDate(startDate) {
   if (!/^\d{8}$/.test(startDate ?? "")) return "";
@@ -86,6 +88,7 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, onReplac
   const [library, setLibrary] = useState(null);
   const [importError, setImportError] = useState("");
   const [pendingImport, setPendingImport] = useState(null);
+  const [siteAccess, setSiteAccess] = useState(null);
   const fileRef = useRef(null);
   // Held in a ref so the open-effect depends only on `open`. Depending on the api object made
   // the effect re-run on every render, refetching the library in a loop and wiping the pending
@@ -100,6 +103,9 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, onReplac
     setPendingImport(null);
     void apiRef.current.loadWallpaperLibrary().then((next) => {
       if (!disposed) setLibrary(next);
+    });
+    void hasSiteAccess().then((granted) => {
+      if (!disposed) setSiteAccess(granted);
     });
     function onKeyDown(event) {
       if (event.key === "Escape") onClose();
@@ -135,6 +141,22 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, onReplac
 
   async function pickGradient(key) {
     adopt(await wallpaperApi.pickGradient(key));
+  }
+
+  // The prompt only appears from a user gesture on an extension page, so it lives behind this
+  // button rather than being asked for on first paint.
+  async function grantSiteAccess() {
+    const granted = await requestSiteAccess();
+    setSiteAccess(granted);
+    if (!granted) return;
+    notify("已允许读取网站，正在重新抓取图标");
+    void refreshSiteIcons(shortcuts);
+  }
+
+  async function dropSiteAccess() {
+    await revokeSiteAccess();
+    setSiteAccess(false);
+    notify("已收回网站访问权限，图标改用 Chrome 已有的记录");
   }
 
   function exportData() {
@@ -261,6 +283,26 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, onReplac
               onCommit={wallpaperApi.commitTuning}
               format={(value) => (value ? `${value}%` : "关")}
             />
+          </section>
+
+          <section className="group">
+            <div className="group__head"><h3 className="group__title">网站图标</h3></div>
+            <p className="group__hint">
+              {siteAccess
+                ? "已允许读取你添加的网站，用于抓取各站点自己声明的高清图标。收回后不会删除已抓到的图标。"
+                : "当前只使用 Chrome 已经存有的网站图标，通常只有 16/32px。允许读取网站后，可以抓取各站点自己声明的高清图标；这项权限只用于取图标，不修改任何网页。"}
+            </p>
+            <div className="group__actions">
+              {siteAccess ? (
+                <button className="ghost-button" type="button" onClick={dropSiteAccess}>
+                  <X size={16} weight="bold" />收回网站访问权限
+                </button>
+              ) : (
+                <button className="ghost-button" type="button" onClick={grantSiteAccess}>
+                  <Globe size={16} weight="bold" />允许读取网站以抓取高清图标
+                </button>
+              )}
+            </div>
           </section>
 
           <section className="group">

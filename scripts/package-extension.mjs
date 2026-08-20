@@ -1,10 +1,11 @@
 // Produces the zip uploaded to the Chrome Web Store.
 //
-// The critical job is what it LEAVES OUT. `public/data/imported-shortcuts.json` is the developer's
-// own bookmarks — dozens of internal hostnames — and it is copied into dist by the normal build
-// because that is how local development seeds the grid. Shipping it would publish someone's
-// private intranet map to the world, so this script refuses to run if that file is still present
-// after pruning rather than trusting itself to have removed it.
+// The extension no longer ships or reads any bundled shortcut data: a fresh install starts empty
+// and is filled by importing a JSON export. The exclusion and the leak check below stay anyway.
+// A `public/data/` file used to seed the grid during development, and shipping one would publish
+// someone’s private intranet map to the world. If that pattern ever returns, this refuses to
+// build rather than trusting itself to have pruned it.
+
 import { createWriteStream } from "node:fs";
 import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { deflateRawSync } from "node:zlib";

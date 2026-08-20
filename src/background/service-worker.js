@@ -12,6 +12,7 @@ import {
 import { ICON_CACHE_NAME, ICON_FAILURE_KEY } from "../lib/icon-cache-keys.js";
 import { pageDeclaredCandidates, safeWebUrl, sanitizeSvg } from "../lib/icon-discovery.js";
 import { analyzeIconBlob } from "../lib/image-visibility.js";
+import { hasSiteAccess } from "../lib/site-access.js";
 
 const BING_ENDPOINT =
   "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=7&mkt=zh-CN";
@@ -304,7 +305,11 @@ async function discoverIconCandidates(pageUrl) {
 // batches time out, which cost more icons than the extra probing ever recovered.
 const EXTRA_PROBES_AFTER_SMALL_HIT = 2;
 
-async function resolveSiteIcon(pageUrl, idealSize) {
+// `siteAccess` is the optional host permission. Without it every fetch below is blocked before
+// it leaves the browser, so probing would only produce a wall of console errors on the way to the
+// same answer — go straight to the fallback instead.
+async function resolveSiteIcon(pageUrl, idealSize, siteAccess) {
+  if (!siteAccess) return await chromeFaviconCandidate(pageUrl);
   let best = null;
   let probesLeft = EXTRA_PROBES_AFTER_SMALL_HIT;
   for (const candidate of await discoverIconCandidates(pageUrl)) {
@@ -413,13 +418,14 @@ function progressReporter() {
   };
 }
 
-async function resolveSiteIcons(sites, devicePixelRatio = 1) {
+async function resolveSiteIcons(sites, devicePixelRatio = 1, refresh = false) {
   const cache = await caches.open(ICON_CACHE_NAME);
   const failures = await loadIconFailures();
   // The size a full-width icon needs on the requesting screen; anything smaller still gets
   // used, just rendered proportionally smaller so it stays sharp.
   const idealSize = Math.ceil(DISPLAY_ICON_PX * Math.min(4, Math.max(1, Number(devicePixelRatio) || 1)));
-  const diagnostics = { total: sites.length, resolved: 0, failed: 0, negativeCache: 0, idealSize };
+  const siteAccess = await hasSiteAccess();
+  const diagnostics = { total: sites.length, resolved: 0, failed: 0, negativeCache: 0, idealSize, siteAccess, refresh };
   const stopKeepAlive = startKeepAlive();
   const progress = progressReporter();
   let cursor = 0;
@@ -434,7 +440,7 @@ async function resolveSiteIcons(sites, devicePixelRatio = 1) {
         diagnostics.negativeCache += 1;
         continue;
       }
-      const result = await resolveSiteIcon(pageUrl, idealSize);
+      const result = await resolveSiteIcon(pageUrl, idealSize, siteAccess);
       if (!result) {
         failures[pageUrl] = { checkedAt: Date.now() };
         diagnostics.failed += 1;
@@ -577,6 +583,14 @@ chrome.runtime.onInstalled.addListener(() => {
   void resolveBackground({ forceArchive: true });
 });
 
+// Granting site access has to invalidate the negative cache. Every site that could not be
+// reached while access was withheld is recorded there for ICON_FAILURE_TTL_MS, so without this
+// the grant would appear to do nothing at all for the rest of that window.
+chrome.permissions.onAdded.addListener((granted) => {
+  if (!granted?.origins?.length) return;
+  void chrome.storage.local.remove(ICON_FAILURE_KEY);
+});
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "LUMATAB_GET_BING_BACKGROUND") {
     resolveBackground({ forceArchive: Boolean(message.force) }).then(sendResponse).catch(() => sendResponse(null));
@@ -603,7 +617,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // the whole batch used to fail with "message channel closed before a response was
     // received" once the run outlived the port, losing every icon it had already found.
     // Completion reaches the page through the LUMATAB_ICONS_UPDATED broadcast instead.
-    void resolveSiteIcons(sites, message.devicePixelRatio)
+    void resolveSiteIcons(sites, message.devicePixelRatio, Boolean(message.refresh))
       .catch((error) => console.warn("LumaTab: site icon resolution failed", error));
     sendResponse({ started: true, total: sites.length });
     return false;

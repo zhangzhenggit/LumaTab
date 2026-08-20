@@ -12,19 +12,6 @@ function countLinks(items) {
     : total + 1, 0);
 }
 
-const DEFAULT_SHORTCUTS_URL = "/data/imported-shortcuts.json";
-
-// Personal shortcut data (see convert:wetab) is a gitignored public/ asset, not a build-time
-// import, so a machine without the file still builds fine and just gets an empty grid.
-async function loadDefaultShortcuts() {
-  try {
-    const response = await fetch(DEFAULT_SHORTCUTS_URL);
-    return response.ok ? await response.json() : [];
-  } catch {
-    return [];
-  }
-}
-
 // Accepts a plain array of items exported by this extension, rejecting anything whose shape we
 // cannot render. Import replaces or merges live data, so a malformed file must fail loudly here
 // rather than half-apply and leave the grid in a state the user cannot undo.
@@ -92,7 +79,7 @@ export function useShortcuts(notify) {
 
   useEffect(() => {
     let disposed = false;
-    void loadDefaultShortcuts().then(loadShortcuts).then(prepareSiteIcons).then((stored) => {
+    void loadShortcuts().then(prepareSiteIcons).then((stored) => {
       if (!disposed) { setShortcuts(stored); setReady(true); }
     });
     return () => { disposed = true; };
@@ -103,8 +90,8 @@ export function useShortcuts(notify) {
   // tab to see sharp icons.
   useEffect(() => {
     let disposed = false;
-    const unsubscribe = subscribeToIconUpdates(() => {
-      void applyCachedSiteIcons(shortcutsRef.current).then((next) => {
+    const unsubscribe = subscribeToIconUpdates((diagnostics) => {
+      void applyCachedSiteIcons(shortcutsRef.current, { force: Boolean(diagnostics?.refresh) }).then((next) => {
         if (!disposed && next !== shortcutsRef.current) setShortcuts(next);
       });
     });
