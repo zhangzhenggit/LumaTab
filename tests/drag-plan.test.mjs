@@ -45,6 +45,16 @@ test("a tile is never its own target, and a folder never merges", () => {
   assert.deepEqual(planDrop({ x: 290, y: 45 }, grid, dragging("b")), { kind: DROP_REORDER, targetId: "c", side: "before" });
 });
 
+test("rows split halfway between the artwork, not at the cell boundary", () => {
+  // Two rows. Icon centres sit at y=45 and y=165, so the eye puts the split at y=105 — while the
+  // cell boxes butt together at y=120, a full 45px below the top row's artwork. Dragging down off
+  // a row used to still count as that row, and the caret drew one row too high.
+  const rows = [tile("a", "link", 0, 0), tile("b", "link", 1, 0), tile("c", "link", 0, 1), tile("d", "link", 1, 1)];
+  const held = { sourceId: "b", sourceType: "link" };
+  assert.equal(planDrop({ x: 50, y: 100 }, rows, held).targetId, "a");
+  assert.equal(planDrop({ x: 50, y: 112 }, rows, held).targetId, "c");
+});
+
 test("a drop in empty space falls back to the nearest cell instead of vanishing", () => {
   assert.deepEqual(planDrop({ x: 900, y: 400 }, grid, dragging("a")), { kind: DROP_REORDER, targetId: "c", side: "after" });
 });

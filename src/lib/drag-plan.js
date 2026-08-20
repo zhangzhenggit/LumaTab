@@ -40,10 +40,14 @@ export function isInside(point, rect, pad = 0) {
     && point.y >= rect.top - pad && point.y <= rect.top + rect.height + pad;
 }
 
-function centreGap(point, rect) {
-  const dx = point.x - (rect.left + rect.width / 2);
-  const dy = point.y - (rect.top + rect.height / 2);
-  return dx * dx + dy * dy;
+function centre(cell) {
+  const box = cell.icon ?? cell.cell;
+  return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+}
+
+function centreGap(point, cell) {
+  const c = centre(cell);
+  return (point.x - c.x) ** 2 + (point.y - c.y) ** 2;
 }
 
 // `cells` is the drag-start snapshot: one entry per tile, each with the cell box and the artwork
@@ -57,8 +61,13 @@ export function planDrop(point, cells, { sourceId, sourceType }) {
   const targets = cells.filter((cell) => cell.id !== sourceId);
   if (!targets.length) return null;
 
-  const hit = targets.find((cell) => isInside(point, cell.cell))
-    ?? targets.reduce((best, cell) => (centreGap(point, cell.cell) < centreGap(point, best.cell) ? cell : best));
+  // Nearest icon centre, not "whichever cell box contains the pointer". A cell is top-heavy — the
+  // 60px icon sits at the top and the caption fills the 45px below it — so cell boxes put the row
+  // boundary 45px *under* an icon. Dragging down past a row still counted as that row, and the
+  // caret appeared one row too high. Icon centres are a regular lattice, so this is the same grid
+  // shifted up by the padding, and the boundary lands halfway between the two rows of artwork,
+  // which is where the eye puts it. Horizontally nothing moves: icons are centred in their cells.
+  const hit = targets.reduce((best, cell) => (centreGap(point, cell) < centreGap(point, best) ? cell : best));
 
   // Only a link can be merged, and folders never nest, so dragging a folder is always a reorder.
   const mergeable = sourceType === "link" && (hit.type === "link" || hit.type === "folder");
@@ -66,8 +75,7 @@ export function planDrop(point, cells, { sourceId, sourceType }) {
     return { kind: DROP_MERGE, targetId: hit.id, side: null };
   }
 
-  const middle = hit.cell.left + hit.cell.width / 2;
-  return { kind: DROP_REORDER, targetId: hit.id, side: point.x < middle ? "before" : "after" };
+  return { kind: DROP_REORDER, targetId: hit.id, side: point.x < centre(hit).x ? "before" : "after" };
 }
 
 export function samePlan(a, b) {
