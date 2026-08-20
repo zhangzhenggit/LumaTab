@@ -10,7 +10,9 @@
 // Nothing breaks without the grant. Icon resolution falls straight through to Chrome's own
 // favicon store, which already holds an icon for every site the user has visited. Those are
 // small, so tiles render them centred on the inset surface instead of full-bleed.
-export const SITE_ORIGINS = ["http://*/*", "https://*/*"];
+// Must stay identical to optional_host_permissions in the manifest: Chrome matches the request
+// against that list literally, and a mismatch fails silently rather than prompting.
+const SITE_ORIGINS = ["http://*/*", "https://*/*"];
 
 function permissions() {
   return globalThis.chrome?.permissions ?? null;

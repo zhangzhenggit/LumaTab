@@ -80,8 +80,3 @@ export async function analyzeIconBlob(blob) {
     return null;
   }
 }
-
-export async function hasVisiblePixels(blob) {
-  const analysis = await analyzeIconBlob(blob);
-  return analysis?.visible ?? false;
-}
