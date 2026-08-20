@@ -24,7 +24,7 @@ export const DROP_REORDER = "reorder";
 // The artwork is 60px inside a 120px cell. Growing the merge zone by 10px on every side makes it
 // 80px — comfortably bigger than the pointer's own wobble — and still leaves a 40px-wide channel
 // between neighbouring icons that belongs entirely to reordering, plus the whole label band below.
-export const MERGE_PADDING = 10;
+const MERGE_PADDING = 10;
 
 // dnd-kit reports the pointer once, at drag start, then a running delta.
 export function pointerAt(activatorEvent, delta) {
