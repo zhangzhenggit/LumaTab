@@ -6,10 +6,12 @@ import { GearSix } from "@phosphor-icons/react";
 import { ItemContextMenu } from "./components/ItemContextMenu";
 import { SearchBar } from "./components/SearchBar";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { SiteAccessPrompt } from "./components/SiteAccessPrompt";
 import { AddTile, ShortcutGhost, ShortcutTile } from "./components/ShortcutTile";
 import { useBingWallpaper } from "./hooks/useBingWallpaper";
 import { useNotice } from "./hooks/useNotice";
 import { useShortcuts } from "./hooks/useShortcuts";
+import { useSiteAccess } from "./hooks/useSiteAccess";
 import { needsDarkInk, wallpaperFilterStyle } from "./lib/background-cache-keys";
 import { findItem } from "./lib/shortcuts-tree";
 
@@ -19,6 +21,7 @@ export function App({ initialWallpaper = null }) {
   const { wallpaper, backgroundMeta, tuning, photoLuminance } = wallpaperApi;
   const shortcutsApi = useShortcuts(notify);
   const { shortcuts, ready, sensors, activeId, mergeReadyId, dropIndicator } = shortcutsApi;
+  const siteAccess = useSiteAccess(shortcuts, ready, notify);
 
   const [addDialog, setAddDialog] = useState(false);
   const [editor, setEditor] = useState(null);
@@ -138,6 +141,9 @@ export function App({ initialWallpaper = null }) {
           </section>
           <DragOverlay dropAnimation={null}>{activeItem ? <ShortcutGhost item={activeItem} /> : null}</DragOverlay>
         </DndContext>
+        {siteAccess.showPrompt && (
+          <SiteAccessPrompt onGrant={siteAccess.grant} onDismiss={siteAccess.dismiss} />
+        )}
       </div>
       {backgroundMeta?.copyright && <a className="photo-credit" href={backgroundMeta.copyrightLink} title={backgroundMeta.copyright}>{backgroundMeta.title || "Bing 每日图"}</a>}
       <AddLinkDialog open={addDialog} onClose={() => setAddDialog(false)} onSubmit={addLink} />
@@ -167,6 +173,7 @@ export function App({ initialWallpaper = null }) {
         onClose={() => setSettingsOpen(false)}
         wallpaperApi={wallpaperApi}
         shortcuts={shortcuts}
+        siteAccess={siteAccess}
         onReplace={shortcutsApi.replaceAll}
         onMerge={shortcutsApi.mergeIn}
         notify={notify}

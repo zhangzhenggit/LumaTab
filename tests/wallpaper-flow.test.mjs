@@ -97,6 +97,10 @@ test("the settings launcher keeps its styles", async () => {
   // once deleted along with a neighbouring block and left invisible but still in the DOM.
   assert.match(css, /\.settings-launcher\s*\{/);
   assert.match(css, /\.settings-launcher:hover/);
+  // The permission prompt falls into the same trap: it is the only place the grant is offered
+  // outside Settings, and a quietly deleted rule leaves it in the DOM but invisible.
+  assert.match(css, /\.site-access\s*\{/);
+  assert.match(css, /\.site-access__grant\s*\{/);
 });
 
 test("switching to auto keeps the current picture and only follows Bing from the next rotation", async () => {
