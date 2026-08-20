@@ -1,6 +1,6 @@
 {
   "name": "lumatab",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,9 +8,10 @@
     "build": "vite build && node scripts/prepare-sites-build.mjs",
     "build:extension": "vite build",
     "convert:wetab": "node scripts/convert-wetab-data.mjs",
-    "test": "node --test tests/icons.test.mjs tests/cache-keys.test.mjs tests/html-icon-parser.test.mjs",
+    "test": "node --test tests/icons.test.mjs tests/cache-keys.test.mjs tests/html-icon-parser.test.mjs tests/wallpaper.test.mjs tests/wallpaper-flow.test.mjs",
     "preview": "vite preview",
-    "test:sites": "node --test tests/sites-worker.test.mjs"
+    "test:sites": "node --test tests/sites-worker.test.mjs",
+    "icons": "node scripts/make-extension-icons.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
