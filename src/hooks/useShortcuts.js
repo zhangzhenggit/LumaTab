@@ -3,7 +3,7 @@ import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { createId, normalizeUrl } from "../lib/icons";
 import { collapseThinFolders } from "../lib/shortcuts-tree";
-import { canMerge, holdFor } from "../lib/drag-merge";
+import { canMerge, hasSettled, holdFor } from "../lib/drag-merge";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
@@ -64,6 +64,7 @@ export function useShortcuts(notify) {
   const [mergeReadyId, setMergeReadyId] = useState(null);
   const mergeTimerRef = useRef(null);
   const dragPointRef = useRef(null);
+  const mergeTargetRef = useRef(null);
   const shortcutsRef = useRef(shortcuts);
   shortcutsRef.current = shortcuts;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -100,6 +101,7 @@ export function useShortcuts(notify) {
   function resetDragState() {
     clearMergeTimer();
     dragPointRef.current = null;
+    mergeTargetRef.current = null;
     setActiveId(null);
     setOverId(null);
     setMergeReadyId(null);
@@ -124,9 +126,17 @@ export function useShortcuts(notify) {
     const nextOverId = event.over ? String(event.over.id) : null;
     if (nextOverId !== overId) setOverId(nextOverId);
 
+    // Jitter is not movement. Resetting the hold on every event — including the 1px tremble of a
+    // hand trying to stay still — meant the merge could never arm for anyone not using a
+    // trackpad with a death grip, which is what made this feel impossible to use.
+    const point = { x: event.delta.x, y: event.delta.y };
+    const parked = hasSettled(dragPointRef.current, point) && nextOverId === mergeTargetRef.current;
+    dragPointRef.current = point;
+    if (parked) return;
+
+    mergeTargetRef.current = nextOverId;
     clearMergeTimer();
     if (mergeReadyId !== null) setMergeReadyId(null);
-    dragPointRef.current = { x: event.delta.x, y: event.delta.y };
 
     const sourceId = String(event.active.id);
     if (!nextOverId || nextOverId === sourceId) return;
@@ -164,11 +174,9 @@ export function useShortcuts(notify) {
         } else if (target.type === "link") {
           next[refreshedTargetIndex] = { id: createId("folder"), type: "folder", name: target.name, children: [target, source] };
         }
-        notify("已加入分组");
         return next;
       }
 
-      notify("顺序已调整");
       return arrayMove(current, sourceIndex, targetIndex);
     });
     resetDragState();

@@ -66,6 +66,7 @@ export function BrandIcon({ item, compact = false }) {
     <img
       className={`brand-icon ${inset ? "brand-icon--inset" : ""}`}
       data-source={item._iconSource ?? "cache"}
+      data-fit={item._iconFullBleed ? "cover" : "contain"}
       style={{
         ...(inset ? { "--inset-size": `${appearance.insetSize}px` } : null),
         objectFit: item._iconFullBleed ? "cover" : "contain",

@@ -258,18 +258,28 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .shortcut--dragging { opacity: .2; }
 .shortcut--overlay { cursor: grabbing; }
 .shortcut--overlay .shortcut__icon { transform: scale(1.08); filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .3)); }
-.shortcut--merge-ready .shortcut__icon { transform: scale(1.1); box-shadow: 0 0 0 3px rgba(255, 255, 255, .9); }
+/* The armed state IS the message now that the drag toasts are gone: the target opens up and a
+   ring closes around it, so the outcome is visible at the moment of decision rather than
+   announced after the fact by a line of text at the bottom of the screen. */
+.shortcut--merge-ready .shortcut__icon {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .95), 0 8px 20px rgba(0, 0, 0, .28);
+  animation: merge-arm 220ms cubic-bezier(.2, 1.5, .4, 1);
+}
+@keyframes merge-arm {
+  0% { transform: scale(1); }
+  60% { transform: scale(1.26); }
+  100% { transform: scale(1.18); }
+}
 
+/* A translucent wash over the target instead of a word stamped across it. At 60px a caption was
+   unreadable anyway, and the ring plus the scale already say what will happen. */
 .shortcut__drop-label {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
   border-radius: inherit;
-  color: #fff;
-  background: rgba(28, 28, 30, .72);
-  font-size: 13px;
-  font-weight: 600;
+  background: rgba(255, 255, 255, .22);
+  pointer-events: none;
 }
 
 /* Jiggle while a drag is live, matching WeTab's edit-mode animation. */
@@ -341,9 +351,13 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   place-items: stretch;
   overflow: hidden;
   border-radius: 6px;
-  background: rgba(255, 255, 255, .5);
+  background: rgba(255, 255, 255, .82);
 }
 .folder-preview__cell > * { width: 100%; height: 100%; }
+/* Artwork with its own background fills its chip, exactly as it fills a full tile. A bare mark is
+   inset instead: at 20px, a transparent logo drawn edge to edge runs into its neighbours and the
+   four chips read as one smudge rather than as four icons. */
+.folder-preview__cell .brand-icon[data-fit="contain"] { padding: 2px; }
 .folder-preview__cell--letter { background: var(--tile-accent); }
 .folder-preview__cell .brand-icon { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
 .folder-preview__cell .letter-icon { font-size: 9px; font-weight: 700; }
