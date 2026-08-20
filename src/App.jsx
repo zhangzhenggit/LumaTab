@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
-import { rectSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import { AddLinkDialog } from "./components/AddLinkDialog";
 import { FolderPanel } from "./components/FolderPanel";
 import { GearSix } from "@phosphor-icons/react";
@@ -19,7 +18,7 @@ export function App({ initialWallpaper = null }) {
   const wallpaperApi = useBingWallpaper(notify, initialWallpaper);
   const { wallpaper, backgroundMeta, tuning, photoLuminance } = wallpaperApi;
   const shortcutsApi = useShortcuts(notify);
-  const { shortcuts, ready, ids, sensors, activeId, mergeReadyId } = shortcutsApi;
+  const { shortcuts, ready, sensors, activeId, mergeReadyId, dropIndicator } = shortcutsApi;
 
   const [addDialog, setAddDialog] = useState(false);
   const [editor, setEditor] = useState(null);
@@ -119,14 +118,25 @@ export function App({ initialWallpaper = null }) {
       <div className="scrim scrim--top" /><div className="scrim scrim--bottom" />
       <div className="newtab__content">
         <SearchBar />
-        <DndContext sensors={sensors} collisionDetection={shortcutsApi.collisionDetection} onDragStart={dragStart} onDragMove={shortcutsApi.dragMove} onDragEnd={shortcutsApi.dragEnd} onDragCancel={shortcutsApi.resetDragState}>
-          <SortableContext items={ids} strategy={rectSortingStrategy}>
-            <section className={`shortcut-grid ${ready ? "shortcut-grid--ready" : ""} ${activeId ? "shortcut-grid--editing" : ""}`} aria-label="快捷链接">
-              {shortcuts.map((item) => <ShortcutTile key={item.id} item={item} onActivate={activate} onContextMenu={openItemMenu} dropMode={mergeReadyId === item.id ? (item.type === "folder" ? "folder" : "merge") : null} />)}
-              <AddTile onClick={() => setAddDialog(true)} />
-            </section>
-          </SortableContext>
-          <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(.2,.8,.2,1)" }}>{activeItem ? <ShortcutGhost item={activeItem} /> : null}</DragOverlay>
+        {/* No SortableContext: the grid is a static target for the whole drag, and every drop is
+            resolved from the snapshot taken when it started. dropAnimation is off for the same
+            reason — the tile has already moved to its new cell by the time the ghost lands, so
+            flying the ghost back to where the drag began would animate to the wrong place. */}
+        <DndContext sensors={sensors} onDragStart={dragStart} onDragMove={shortcutsApi.dragMove} onDragEnd={shortcutsApi.dragEnd} onDragCancel={shortcutsApi.resetDragState}>
+          <section className={`shortcut-grid ${ready ? "shortcut-grid--ready" : ""} ${activeId ? "shortcut-grid--editing" : ""}`} aria-label="快捷链接">
+            {shortcuts.map((item) => (
+              <ShortcutTile
+                key={item.id}
+                item={item}
+                onActivate={activate}
+                onContextMenu={openItemMenu}
+                dropMode={mergeReadyId === item.id ? (item.type === "folder" ? "folder" : "merge") : null}
+                dropEdge={dropIndicator?.targetId === item.id ? dropIndicator.side : null}
+              />
+            ))}
+            <AddTile onClick={() => setAddDialog(true)} />
+          </section>
+          <DragOverlay dropAnimation={null}>{activeItem ? <ShortcutGhost item={activeItem} /> : null}</DragOverlay>
         </DndContext>
       </div>
       {backgroundMeta?.copyright && <a className="photo-credit" href={backgroundMeta.copyrightLink} title={backgroundMeta.copyright}>{backgroundMeta.title || "Bing 每日图"}</a>}

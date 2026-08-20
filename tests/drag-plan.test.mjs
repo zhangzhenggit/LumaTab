@@ -1,67 +1,91 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyDrop, DROP_MERGE, DROP_REORDER, isInside, planDrop, pointerAt } from "../src/lib/drag-plan.js";
+import { applyPlan, DROP_MERGE, DROP_REORDER, isInside, planDrop, pointerAt, samePlan } from "../src/lib/drag-plan.js";
 
-// A 120px cell with its 60px icon centred horizontally, 15px down — the real grid geometry.
-const icon = (cellLeft, cellTop = 0) => ({ left: cellLeft + 30, top: cellTop + 15, width: 60, height: 60 });
+// The real grid geometry: 120px cells in a row, each holding a 60px icon inset 30px across and
+// 15px down. Every coordinate below is a real screen position in that layout.
+const cellAt = (column, row = 0) => ({ left: column * 120, top: row * 120, width: 120, height: 120 });
+const tile = (id, type, column, row = 0) => {
+  const cell = cellAt(column, row);
+  return { id, type, cell, icon: { left: cell.left + 30, top: cell.top + 15, width: 60, height: 60 } };
+};
 const link = (id) => ({ id, type: "link", name: id, url: `https://${id}.test/` });
 const folder = (id, children) => ({ id, type: "folder", name: id, children });
+
+const grid = [tile("a", "link", 0), tile("b", "folder", 1), tile("c", "link", 2)];
+const dragging = (id) => ({ sourceId: id, sourceType: id === "b" ? "folder" : "link" });
 
 test("pointer position is the activator plus the running delta", () => {
   assert.deepEqual(pointerAt({ clientX: 100, clientY: 50 }, { x: 30, y: -10 }), { x: 130, y: 40 });
   assert.equal(pointerAt(undefined, { x: 1, y: 1 }), null);
+  assert.equal(planDrop(null, grid, dragging("a")), null);
+  assert.equal(planDrop({ x: 0, y: 0 }, [], dragging("a")), null);
 });
 
-test("the icon decides a merge; the gutter beside it decides a reorder", () => {
-  const target = icon(0);
-  const base = { sourceType: "link", targetType: "link", targetIconRect: target };
-  // Dead centre of the artwork — unambiguously "into this one".
-  assert.equal(planDrop({ ...base, point: { x: 60, y: 45 } }), DROP_MERGE);
-  // In the cell but left of the icon: the gap that means "slot in beside it". This is the case
-  // the old hold-timer got wrong, because pausing here still armed a merge.
-  assert.equal(planDrop({ ...base, point: { x: 10, y: 45 } }), DROP_REORDER);
-  // Below the icon, where the label sits.
-  assert.equal(planDrop({ ...base, point: { x: 60, y: 100 } }), DROP_REORDER);
+test("the icon decides a merge; everywhere else in the cell decides a reorder", () => {
+  // Dead centre of the middle icon — unambiguously "into this one".
+  assert.deepEqual(planDrop({ x: 180, y: 45 }, grid, dragging("a")), { kind: DROP_MERGE, targetId: "b", side: null });
+  // Left of that icon, in the channel between two tiles.
+  assert.deepEqual(planDrop({ x: 130, y: 45 }, grid, dragging("a")), { kind: DROP_REORDER, targetId: "b", side: "before" });
+  // Below it, where the label sits.
+  assert.deepEqual(planDrop({ x: 200, y: 100 }, grid, dragging("a")), { kind: DROP_REORDER, targetId: "b", side: "after" });
 });
 
-test("only links merge, and folders never nest", () => {
-  const target = icon(0);
-  const onIcon = { x: 60, y: 45 };
-  assert.equal(planDrop({ point: onIcon, sourceType: "link", targetType: "folder", targetIconRect: target }), DROP_MERGE);
-  assert.equal(planDrop({ point: onIcon, sourceType: "folder", targetType: "folder", targetIconRect: target }), DROP_REORDER);
-  assert.equal(planDrop({ point: onIcon, sourceType: "folder", targetType: "link", targetIconRect: target }), DROP_REORDER);
+test("the merge zone is the icon plus a 10px margin, and no more", () => {
+  // 5px outside the artwork still counts: hands shake, and a 60px target is small.
+  assert.equal(planDrop({ x: 145, y: 45 }, grid, dragging("a")).kind, DROP_MERGE);
+  // 15px outside does not, so the channel between icons stays reorder-only.
+  assert.equal(planDrop({ x: 135, y: 45 }, grid, dragging("a")).kind, DROP_REORDER);
 });
 
-test("a missing rect never merges by accident", () => {
-  assert.equal(planDrop({ point: { x: 0, y: 0 }, sourceType: "link", targetType: "link", targetIconRect: null }), DROP_REORDER);
-  assert.equal(isInside(null, icon(0)), false);
+test("a tile is never its own target, and a folder never merges", () => {
+  // Pointer on a's own icon: a is skipped, so the nearest other cell answers instead.
+  assert.deepEqual(planDrop({ x: 60, y: 45 }, grid, dragging("a")), { kind: DROP_REORDER, targetId: "b", side: "before" });
+  // Dragging the folder onto a link is a reorder: folders do not nest.
+  assert.deepEqual(planDrop({ x: 290, y: 45 }, grid, dragging("b")), { kind: DROP_REORDER, targetId: "c", side: "before" });
 });
 
-test("reorder moves the tile to the target's place, in either direction", () => {
+test("a drop in empty space falls back to the nearest cell instead of vanishing", () => {
+  assert.deepEqual(planDrop({ x: 900, y: 400 }, grid, dragging("a")), { kind: DROP_REORDER, targetId: "c", side: "after" });
+});
+
+test("identical plans compare equal so the grid does not re-render every frame", () => {
+  const point = { x: 180, y: 45 };
+  assert.equal(samePlan(planDrop(point, grid, dragging("a")), planDrop(point, grid, dragging("a"))), true);
+  assert.equal(samePlan(planDrop(point, grid, dragging("a")), null), false);
+  assert.equal(samePlan(null, null), true);
+  assert.equal(isInside(null, grid[0].icon), false);
+});
+
+test("reorder inserts on the side the pointer was on, in either direction", () => {
   const items = [link("a"), link("b"), link("c"), link("d")];
-  const opts = { plan: DROP_REORDER, makeFolderId: () => "new" };
+  const opts = { sourceId: "a", makeFolderId: () => "new" };
   assert.deepEqual(
-    applyDrop(items, { ...opts, sourceId: "a", targetId: "c" }).map((i) => i.id),
+    applyPlan(items, { kind: DROP_REORDER, targetId: "c", side: "after" }, opts).map((i) => i.id),
     ["b", "c", "a", "d"],
   );
   assert.deepEqual(
-    applyDrop(items, { ...opts, sourceId: "d", targetId: "b" }).map((i) => i.id),
+    applyPlan(items, { kind: DROP_REORDER, targetId: "b", side: "before" }, { ...opts, sourceId: "d" }).map((i) => i.id),
     ["a", "d", "b", "c"],
   );
 });
 
+test("dropping back into the gap it already occupies changes nothing", () => {
+  const items = [link("a"), link("b"), link("c")];
+  const opts = { sourceId: "a", makeFolderId: () => "new" };
+  // Same array back, not a copy: an accidental nudge must not count as an edit.
+  assert.equal(applyPlan(items, { kind: DROP_REORDER, targetId: "b", side: "before" }, opts), items);
+  assert.equal(applyPlan(items, { kind: DROP_MERGE, targetId: "a", side: null }, opts), items);
+  assert.equal(applyPlan(items, null, opts), items);
+});
+
 test("merging a link onto a link makes a folder; onto a folder it joins", () => {
   const items = [link("a"), link("b"), folder("f", [link("x")])];
-  const made = applyDrop(items, { plan: DROP_MERGE, sourceId: "a", targetId: "b", makeFolderId: () => "new" });
+  const made = applyPlan(items, { kind: DROP_MERGE, targetId: "b" }, { sourceId: "a", makeFolderId: () => "new" });
   assert.deepEqual(made.map((i) => i.id), ["new", "f"]);
   assert.deepEqual(made[0].children.map((i) => i.id), ["b", "a"]);
 
-  const joined = applyDrop(items, { plan: DROP_MERGE, sourceId: "a", targetId: "f", makeFolderId: () => "new" });
+  const joined = applyPlan(items, { kind: DROP_MERGE, targetId: "f" }, { sourceId: "a", makeFolderId: () => "new" });
   assert.deepEqual(joined.map((i) => i.id), ["b", "f"]);
   assert.deepEqual(joined[1].children.map((i) => i.id), ["x", "a"]);
-});
-
-test("dropping a tile on itself changes nothing", () => {
-  const items = [link("a"), link("b")];
-  assert.equal(applyDrop(items, { plan: DROP_MERGE, sourceId: "a", targetId: "a", makeFolderId: () => "new" }), items);
 });

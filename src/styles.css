@@ -189,6 +189,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   /* Flex column, not block: a <button> vertically centres its own content, so the label-less Add
      tile sat half a row lower than every captioned tile beside it. Laying both out the same way
      pins the icon to the top of the cell regardless of whether a label follows it. */
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -292,6 +293,36 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 .shortcut-grid--editing .shortcut:not(.shortcut--dragging) .shortcut__icon {
   animation: tile-jiggle .3s ease .3s infinite;
+}
+/* The jiggle is an infinite rotate, so it wins the `transform` cascade and used to swallow the
+   merge ring's scale-up entirely — the ring appeared but the target never opened. A target being
+   aimed at holds still and grows instead; four classes to out-rank the jiggle rule above. */
+.shortcut-grid--editing .shortcut--merge-ready:not(.shortcut--dragging) .shortcut__icon {
+  transform: scale(1.18);
+  animation: merge-arm 220ms cubic-bezier(.2, 1.5, .4, 1);
+}
+
+/* Where the tile lands if it is released here. A grid that never reflows cannot show the gap by
+   opening one, so the gap is drawn: a bar on the cell boundary, which is the midpoint of the
+   60px channel between two icons no matter which of the two tiles is carrying it. */
+.shortcut__caret {
+  position: absolute;
+  /* Full cell height, not just the icon band: the drag ghost sits right on top of the caret
+     while you aim, so it has to stick out above and below the ghost to stay readable. */
+  top: 4px;
+  width: 4px;
+  height: calc(var(--cell-size) - 8px);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .95);
+  box-shadow: 0 0 12px rgba(0, 0, 0, .45);
+  pointer-events: none;
+  animation: caret-in 140ms ease;
+}
+.shortcut__caret--before { left: -2px; }
+.shortcut__caret--after { right: -2px; }
+@keyframes caret-in {
+  from { opacity: 0; transform: scaleY(.55); }
+  to   { opacity: 1; transform: scaleY(1); }
 }
 
 /* ---------- icon content ---------- */

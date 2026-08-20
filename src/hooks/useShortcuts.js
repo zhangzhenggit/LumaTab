@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { createId, normalizeUrl } from "../lib/icons";
 import { collapseThinFolders } from "../lib/shortcuts-tree";
-import { createCollisionStrategy } from "../lib/drag-collision";
-import { applyDrop, DROP_MERGE, DROP_REORDER, mergeTargetAt, pointerAt } from "../lib/drag-plan";
+import { applyPlan, DROP_MERGE, DROP_REORDER, planDrop, pointerAt, samePlan } from "../lib/drag-plan";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
@@ -60,57 +59,34 @@ export function useShortcuts(notify) {
   const [shortcuts, setShortcuts] = useState([]);
   const [ready, setReady] = useState(false);
   const [activeId, setActiveId] = useState(null);
-  const [overId, setOverId] = useState(null);
-  const [mergeReadyId, setMergeReadyId] = useState(null);
-  const lastOverRef = useRef(null);
+  const [dropPlan, setDropPlan] = useState(null);
   const shortcutsRef = useRef(shortcuts);
   shortcutsRef.current = shortcuts;
+  // The grid exactly as it looked when the drag began. It is deliberately never re-read: tiles do
+  // not move during a drag, and re-measuring would hand the decision back a rect that the
+  // decision itself had changed — the merge ring scales its target up by 18%.
+  const gridRef = useRef([]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  // Declared before the strategy that closes over it; the callback only runs during a drag, long
-  // after this render has finished.
-  const mergeProbeRef = useRef(() => false);
-  const collisionDetection = useMemo(
-    () => createCollisionStrategy(lastOverRef, (point) => mergeProbeRef.current(point)),
-    [],
-  );
 
-  // Walks what is literally under the cursor. The drag overlay carries no data-tile-id, so it is
-  // skipped automatically rather than shadowing the tile beneath it.
-  function stackAt(point) {
-    return document.elementsFromPoint(point.x, point.y)
-      .map((element) => element.closest?.("[data-tile-id]"))
-      .filter(Boolean)
-      .map((tile) => ({
-        id: tile.dataset.tileId,
-        iconRect: tile.querySelector(".shortcut__icon")?.getBoundingClientRect() ?? null,
+  function measureGrid() {
+    const types = new Map(shortcutsRef.current.map((item) => [item.id, item.type]));
+    const grid = document.querySelector(".shortcut-grid");
+    return Array.from(grid?.querySelectorAll("[data-tile-id]") ?? [])
+      .filter((node) => types.has(node.dataset.tileId))
+      .map((node) => ({
+        id: node.dataset.tileId,
+        type: types.get(node.dataset.tileId),
+        cell: node.getBoundingClientRect(),
+        icon: node.querySelector(".shortcut__icon")?.getBoundingClientRect() ?? null,
       }));
   }
 
-  // Shared by the collision strategy and the drop planner so the ring, the frozen grid and the
-  // final action can never disagree about what the pointer is on.
-  function mergeTargetFor(sourceId, point) {
-    const source = shortcutsRef.current.find((item) => item.id === sourceId);
-    if (source?.type !== "link") return null;
-    const id = mergeTargetAt(point, { sourceId, resolveStack: stackAt });
-    const target = shortcutsRef.current.find((item) => item.id === id);
-    return target && (target.type === "link" || target.type === "folder") ? id : null;
-  }
-
-  mergeProbeRef.current = (point) => (
-    activeId ? Boolean(mergeTargetFor(activeId, point)) : false
-  );
-
   function planFor(event) {
     const sourceId = String(event.active.id);
-    const point = pointerAt(event.activatorEvent, event.delta);
-    // Merge is answered by the pointer against the screen; reorder is answered by dnd-kit's slot
-    // logic. Each mechanism is used for the thing it is actually correct about.
-    const mergeId = mergeTargetFor(sourceId, point);
-    if (mergeId) return { targetId: mergeId, plan: DROP_MERGE };
-
-    const overId = event.over ? String(event.over.id) : null;
-    if (!overId || overId === sourceId) return { targetId: null, plan: null };
-    return { targetId: overId, plan: DROP_REORDER };
+    return planDrop(pointerAt(event.activatorEvent, event.delta), gridRef.current, {
+      sourceId,
+      sourceType: shortcutsRef.current.find((item) => item.id === sourceId)?.type ?? "link",
+    });
   }
 
 
@@ -141,41 +117,37 @@ export function useShortcuts(notify) {
     return () => clearTimeout(timeout);
   }, [ready, shortcuts]);
 
-  const ids = useMemo(() => shortcuts.map((item) => item.id), [shortcuts]);
-
   function resetDragState() {
-    lastOverRef.current = null;
     setActiveId(null);
-    setOverId(null);
-    setMergeReadyId(null);
+    setDropPlan(null);
   }
 
+  // Measured before React paints anything, so the snapshot catches the tiles at rest: no jiggle
+  // rotation inflating a bounding box, no merge ring, no hover lift on anything but the tile
+  // being picked up — and that one is excluded from the targets anyway.
   function dragStart(event) {
-    lastOverRef.current = null;
+    gridRef.current = measureGrid();
+    // The sensor only fires this after 6px of travel, so there is already a real pointer position
+    // to answer from. Waiting for the next onDragMove instead left the first frame of every drag
+    // with no ring and no caret, which reads as the grid ignoring you.
+    setDropPlan(planFor(event));
     setActiveId(String(event.active.id));
   }
 
-  // Every move re-answers one question from the pointer's current position: is it on a tile, or in
-  // the gutter beside one? No timers, so the answer is immediate and reversible — slide onto the
-  // icon and the ring appears, slide off and it goes.
+  // Every move re-answers one question against that snapshot: is the pointer on an icon, or in
+  // the gap beside one? No timers and no memory of previous frames, so the answer is immediate
+  // and reversible — slide onto the icon and the ring appears, slide off and it goes.
   function dragMove(event) {
-    const { targetId, plan } = planFor(event);
-    if (targetId !== overId) setOverId(targetId);
-    const nextMerge = plan === DROP_MERGE ? targetId : null;
-    if (nextMerge !== mergeReadyId) setMergeReadyId(nextMerge);
+    const next = planFor(event);
+    setDropPlan((current) => (samePlan(current, next) ? current : next));
   }
 
   function dragEnd(event) {
-    const { targetId, plan } = planFor(event);
-    const sourceId = String(event.active.id);
-    if (targetId && plan) {
-      setShortcuts((current) => applyDrop(current, {
-        plan,
-        sourceId,
-        targetId,
-        makeFolderId: () => createId("folder"),
-      }));
-    }
+    const plan = planFor(event);
+    setShortcuts((current) => applyPlan(current, plan, {
+      sourceId: String(event.active.id),
+      makeFolderId: () => createId("folder"),
+    }));
     resetDragState();
   }
 
@@ -287,8 +259,10 @@ export function useShortcuts(notify) {
 
 
   return {
-    shortcuts, ready, ids, sensors, collisionDetection,
-    activeId, mergeReadyId,
+    shortcuts, ready, sensors,
+    activeId,
+    mergeReadyId: dropPlan?.kind === DROP_MERGE ? dropPlan.targetId : null,
+    dropIndicator: dropPlan?.kind === DROP_REORDER ? dropPlan : null,
     dragStart, dragMove, dragEnd, resetDragState,
     addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
     replaceAll, mergeIn,

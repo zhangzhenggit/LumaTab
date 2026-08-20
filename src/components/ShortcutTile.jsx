@@ -1,6 +1,5 @@
 import { Plus } from "@phosphor-icons/react";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useDraggable } from "@dnd-kit/core";
 import { BrandIcon, iconAppearance, PREVIEW_CSS_PX } from "./BrandIcon";
 
 export function iconProps(item) {
@@ -41,9 +40,12 @@ function TileLabel({ name }) {
   return <div className="shortcut__label"><span className="shortcut__name">{name}</span></div>;
 }
 
-export function ShortcutTile({ item, onActivate, onContextMenu, dropMode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+// A plain draggable, not a sortable. useSortable exists to animate a live preview of the new
+// order, and that preview was the whole problem: it moved the tile the pointer was aiming at.
+// The tile therefore carries no transform at all — it sits still for the entire drag, and the
+// only feedback is the ring on a merge target or the caret in the gap it would slot into.
+export function ShortcutTile({ item, onActivate, onContextMenu, dropMode, dropEdge }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: item.id });
 
   function keyDown(event) {
     if (event.key === "Enter" || event.key === " ") {
@@ -55,7 +57,6 @@ export function ShortcutTile({ item, onActivate, onContextMenu, dropMode }) {
   return (
     <div
       ref={setNodeRef}
-      style={style}
       className={`shortcut ${isDragging ? "shortcut--dragging" : ""} ${dropMode ? "shortcut--merge-ready" : ""}`}
       data-tile-id={item.id}
       role="link"
@@ -69,6 +70,7 @@ export function ShortcutTile({ item, onActivate, onContextMenu, dropMode }) {
     >
       <TileFace item={item} dropMode={dropMode} />
       <TileLabel name={item.name} />
+      {dropEdge && <span className={`shortcut__caret shortcut__caret--${dropEdge}`} aria-hidden="true" />}
     </div>
   );
 }
