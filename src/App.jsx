@@ -119,7 +119,7 @@ export function App({ initialWallpaper = null }) {
       <div className="scrim scrim--top" /><div className="scrim scrim--bottom" />
       <div className="newtab__content">
         <SearchBar />
-        <DndContext sensors={sensors} onDragStart={dragStart} onDragOver={shortcutsApi.dragOver} onDragEnd={shortcutsApi.dragEnd} onDragCancel={shortcutsApi.resetDragState}>
+        <DndContext sensors={sensors} onDragStart={dragStart} onDragMove={shortcutsApi.dragMove} onDragEnd={shortcutsApi.dragEnd} onDragCancel={shortcutsApi.resetDragState}>
           <SortableContext items={ids} strategy={rectSortingStrategy}>
             <section className={`shortcut-grid ${ready ? "shortcut-grid--ready" : ""} ${activeId ? "shortcut-grid--editing" : ""}`} aria-label="快捷链接">
               {shortcuts.map((item) => <ShortcutTile key={item.id} item={item} onActivate={activate} onContextMenu={openItemMenu} dropMode={mergeReadyId === item.id ? (item.type === "folder" ? "folder" : "merge") : null} />)}

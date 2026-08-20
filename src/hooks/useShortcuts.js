@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { createId, normalizeUrl } from "../lib/icons";
+import { collapseThinFolders } from "../lib/shortcuts-tree";
+import { canMerge, MERGE_HOLD_MS } from "../lib/drag-merge";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
@@ -11,7 +13,6 @@ function countLinks(items) {
     : total + 1, 0);
 }
 
-const MERGE_HOLD_MS = 650;
 const DEFAULT_SHORTCUTS_URL = "/data/imported-shortcuts.json";
 
 // Personal shortcut data (see convert:wetab) is a gitignored public/ asset, not a build-time
@@ -62,6 +63,7 @@ export function useShortcuts(notify) {
   const [overId, setOverId] = useState(null);
   const [mergeReadyId, setMergeReadyId] = useState(null);
   const mergeTimerRef = useRef(null);
+  const dragPointRef = useRef(null);
   const shortcutsRef = useRef(shortcuts);
   shortcutsRef.current = shortcuts;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -95,13 +97,9 @@ export function useShortcuts(notify) {
 
   const ids = useMemo(() => shortcuts.map((item) => item.id), [shortcuts]);
 
-  function clearMergeTimer() {
-    if (mergeTimerRef.current) clearTimeout(mergeTimerRef.current);
-    mergeTimerRef.current = null;
-  }
-
   function resetDragState() {
     clearMergeTimer();
+    dragPointRef.current = null;
     setActiveId(null);
     setOverId(null);
     setMergeReadyId(null);
@@ -111,24 +109,40 @@ export function useShortcuts(notify) {
     setActiveId(String(event.active.id));
   }
 
-  function dragOver(event) {
-    const nextOverId = event.over ? String(event.over.id) : null;
-    if (nextOverId === overId) return;
-    clearMergeTimer();
-    setOverId(nextOverId);
-    setMergeReadyId(null);
-    if (nextOverId && nextOverId !== activeId) {
-      const source = shortcuts.find((item) => item.id === String(event.active.id));
-      const target = shortcuts.find((item) => item.id === nextOverId);
-      if (source?.type === "link" && target?.type === "folder") {
-        setMergeReadyId(nextOverId);
-        return;
-      }
-      if (source?.type === "link" && target?.type === "link") {
-        mergeTimerRef.current = setTimeout(() => setMergeReadyId(nextOverId), MERGE_HOLD_MS);
-      }
-    }
+  // Runs on every pointer move, not just when the target changes: whether this is a merge or a
+  // reorder depends on how far the tile has travelled onto its neighbour, which changes
+  // continuously. State is only written when the verdict actually flips.
+  function clearMergeTimer() {
+    if (mergeTimerRef.current) clearTimeout(mergeTimerRef.current);
+    mergeTimerRef.current = null;
   }
+
+  // Fires on every pointer move. Each move disarms the merge and restarts the hold, so the merge
+  // can only land when the pointer has actually come to rest on a tile — sweeping past one to
+  // take its slot never arms it, however long the whole drag takes.
+  function dragMove(event) {
+    const nextOverId = event.over ? String(event.over.id) : null;
+    if (nextOverId !== overId) setOverId(nextOverId);
+
+    clearMergeTimer();
+    if (mergeReadyId !== null) setMergeReadyId(null);
+    dragPointRef.current = { x: event.delta.x, y: event.delta.y };
+
+    const sourceId = String(event.active.id);
+    if (!nextOverId || nextOverId === sourceId) return;
+    const source = shortcuts.find((item) => item.id === sourceId);
+    const target = shortcuts.find((item) => item.id === nextOverId);
+    if (!canMerge({
+      sourceType: source?.type,
+      targetType: target?.type,
+      activeRect: event.active.rect.current.translated,
+      overRect: event.over.rect,
+    })) return;
+
+    mergeTimerRef.current = setTimeout(() => setMergeReadyId(nextOverId), MERGE_HOLD_MS);
+  }
+
+
 
   function dragEnd(event) {
     const sourceId = String(event.active.id);
@@ -140,9 +154,9 @@ export function useShortcuts(notify) {
       if (sourceIndex < 0 || targetIndex < 0) return current;
       const source = current[sourceIndex];
       const target = current[targetIndex];
-      const shouldMerge = source.type === "link" && (target.type === "folder" || targetId === mergeReadyId);
-
-      if (shouldMerge && source.type === "link") {
+      // Only the live overlap verdict decides. A folder no longer swallows anything dropped
+      // near it, so folders can be reordered like any other tile.
+      if (targetId === mergeReadyId && source.type === "link") {
         const next = current.filter((item) => item.id !== sourceId);
         const refreshedTargetIndex = next.findIndex((item) => item.id === targetId);
         if (target.type === "folder") {
@@ -213,9 +227,9 @@ export function useShortcuts(notify) {
   }
 
   function deleteItem(ref) {
-    setShortcuts((current) => ref.folderId
+    setShortcuts((current) => collapseThinFolders(ref.folderId
       ? current.map((item) => item.id === ref.folderId ? { ...item, children: item.children.filter((child) => child.id !== ref.itemId) } : item)
-      : current.filter((item) => item.id !== ref.itemId));
+      : current.filter((item) => item.id !== ref.itemId)));
     notify("快捷链接已删除");
   }
 
@@ -224,7 +238,8 @@ export function useShortcuts(notify) {
       const next = current.map((entry) => entry.id === ref.folderId
         ? { ...entry, children: entry.children.filter((child) => child.id !== ref.itemId) }
         : entry);
-      return [...next, item];
+      // The link that just left may have been the second-to-last, leaving a one-item folder.
+      return collapseThinFolders([...next, item]);
     });
     notify("已移出分组");
   }
@@ -268,7 +283,7 @@ export function useShortcuts(notify) {
   return {
     shortcuts, ready, ids, sensors,
     activeId, mergeReadyId,
-    dragStart, dragOver, dragEnd, resetDragState,
+    dragStart, dragMove, dragEnd, resetDragState,
     addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
     replaceAll, mergeIn,
   };
