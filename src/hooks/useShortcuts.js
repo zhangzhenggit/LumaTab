@@ -3,7 +3,7 @@ import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { createId, normalizeUrl } from "../lib/icons";
 import { collapseThinFolders } from "../lib/shortcuts-tree";
 import { createCollisionStrategy } from "../lib/drag-collision";
-import { applyDrop, DROP_MERGE, planDrop, pointerAt } from "../lib/drag-plan";
+import { applyDrop, DROP_MERGE, DROP_REORDER, mergeTargetAt, pointerAt } from "../lib/drag-plan";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
@@ -66,29 +66,53 @@ export function useShortcuts(notify) {
   const shortcutsRef = useRef(shortcuts);
   shortcutsRef.current = shortcuts;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  const collisionDetection = useMemo(() => createCollisionStrategy(lastOverRef), []);
+  // Declared before the strategy that closes over it; the callback only runs during a drag, long
+  // after this render has finished.
+  const mergeProbeRef = useRef(() => false);
+  const collisionDetection = useMemo(
+    () => createCollisionStrategy(lastOverRef, (point) => mergeProbeRef.current(point)),
+    [],
+  );
 
-  // The icon is the merge target, not the whole cell — the cell includes the gutter that means
-  // "put it beside this one". Read from the DOM so the two never drift apart when the CSS changes.
-  function iconRectOf(tileId) {
-    const node = document.querySelector(`[data-tile-id="${CSS.escape(String(tileId))}"] .shortcut__icon`);
-    return node ? node.getBoundingClientRect() : null;
+  // Walks what is literally under the cursor. The drag overlay carries no data-tile-id, so it is
+  // skipped automatically rather than shadowing the tile beneath it.
+  function stackAt(point) {
+    return document.elementsFromPoint(point.x, point.y)
+      .map((element) => element.closest?.("[data-tile-id]"))
+      .filter(Boolean)
+      .map((tile) => ({
+        id: tile.dataset.tileId,
+        iconRect: tile.querySelector(".shortcut__icon")?.getBoundingClientRect() ?? null,
+      }));
   }
+
+  // Shared by the collision strategy and the drop planner so the ring, the frozen grid and the
+  // final action can never disagree about what the pointer is on.
+  function mergeTargetFor(sourceId, point) {
+    const source = shortcutsRef.current.find((item) => item.id === sourceId);
+    if (source?.type !== "link") return null;
+    const id = mergeTargetAt(point, { sourceId, resolveStack: stackAt });
+    const target = shortcutsRef.current.find((item) => item.id === id);
+    return target && (target.type === "link" || target.type === "folder") ? id : null;
+  }
+
+  mergeProbeRef.current = (point) => (
+    activeId ? Boolean(mergeTargetFor(activeId, point)) : false
+  );
 
   function planFor(event) {
-    const targetId = event.over ? String(event.over.id) : null;
     const sourceId = String(event.active.id);
-    if (!targetId || targetId === sourceId) return { targetId: null, plan: null };
-    const source = shortcutsRef.current.find((item) => item.id === sourceId);
-    const target = shortcutsRef.current.find((item) => item.id === targetId);
-    const plan = planDrop({
-      point: pointerAt(event.activatorEvent, event.delta),
-      sourceType: source?.type,
-      targetType: target?.type,
-      targetIconRect: iconRectOf(targetId),
-    });
-    return { targetId, plan };
+    const point = pointerAt(event.activatorEvent, event.delta);
+    // Merge is answered by the pointer against the screen; reorder is answered by dnd-kit's slot
+    // logic. Each mechanism is used for the thing it is actually correct about.
+    const mergeId = mergeTargetFor(sourceId, point);
+    if (mergeId) return { targetId: mergeId, plan: DROP_MERGE };
+
+    const overId = event.over ? String(event.over.id) : null;
+    if (!overId || overId === sourceId) return { targetId: null, plan: null };
+    return { targetId: overId, plan: DROP_REORDER };
   }
+
 
   useEffect(() => {
     let disposed = false;

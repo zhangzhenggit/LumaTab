@@ -31,6 +31,24 @@ export function isInside(point, rect) {
     && point.y >= rect.top && point.y <= rect.top + rect.height;
 }
 
+// Which tile the pointer is *visually* over, and whether it is over that tile's artwork.
+//
+// This deliberately does not use dnd-kit's `over`. A sortable resolves `over` against the original
+// slot layout, not the shifted positions on screen — that is how sorting works — so while tiles are
+// displaced the two disagree by a whole cell. Aiming at a folder therefore reported the neighbour,
+// and the merge ring lit on the wrong tile or not at all. Hit-testing the live DOM answers the
+// question the user is actually asking: what is under my cursor right now.
+//
+// `resolveStack` is injected so the decision stays testable without a document.
+export function mergeTargetAt(point, { sourceId, resolveStack }) {
+  if (!point) return null;
+  for (const entry of resolveStack(point) ?? []) {
+    if (!entry || entry.id === sourceId) continue;
+    return isInside(point, entry.iconRect) ? entry.id : null;
+  }
+  return null;
+}
+
 // Only a link can be merged: dragging a folder is always a reorder, because folders do not nest.
 export function planDrop({ point, sourceType, targetType, targetIconRect }) {
   if (sourceType !== "link") return DROP_REORDER;

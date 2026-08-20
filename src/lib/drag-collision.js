@@ -1,31 +1,33 @@
-import { closestCenter, pointerWithin, rectIntersection } from "@dnd-kit/core";
+import { closestCenter } from "@dnd-kit/core";
 
-// Collision strategy, following dnd-kit's own MultipleContainers recipe.
+// Collision strategy for the shortcut grid.
 //
-// The default (rectIntersection) reports *every* droppable the dragged rect touches, and in a tight
-// grid a 60px tile touches several at once. The winner then flips on sub-pixel movement, and since
-// SortableContext reflows on every change of `over`, the whole grid twitched — which is what
-// "一拖其他图标就乱跑" was.
+// Reordering uses closestCenter, which is what dnd-kit documents for sortable lists. pointerWithin
+// was tried first and is wrong here: it resolves against dnd-kit's measured rects, and those rects
+// move while the sortable animates tiles into their new slots. The pointer then falls inside a
+// different tile, `over` flips, the grid animates again — a feedback loop that kept the row
+// shuffling even with the pointer held perfectly still. closestCenter compares distances between
+// centres, which changes smoothly and settles.
 //
-// pointerWithin reports only what the pointer is actually inside, so there is exactly one answer
-// and it changes only when the cursor crosses a real boundary. rectIntersection is the fallback for
-// the moment the pointer leaves every tile (over a gutter), and the last known target is held
-// rather than dropped, so letting go in a gap does not silently cancel the drag.
-export function createCollisionStrategy(lastOverId) {
+// Merging is not decided here at all. It is answered against the live DOM (see mergeTargetAt),
+// because the only thing that matters is which icon is under the cursor on screen.
+export function createCollisionStrategy(lastOverId, isOverMergeTarget) {
   return (args) => {
-    const byPointer = pointerWithin(args);
-    const collisions = byPointer.length > 0 ? byPointer : rectIntersection(args);
-    if (collisions.length > 0) {
-      // More than one only happens where droppables genuinely overlap (a tile inside the folder
-      // panel over the panel's own exit zone); the nearest centre is the honest tie-break.
-      const winner = collisions.length === 1
-        ? collisions[0]
-        : closestCenter({ ...args, droppableContainers: args.droppableContainers.filter(
-          (container) => collisions.some((collision) => collision.id === container.id),
-        ) })[0] ?? collisions[0];
-      lastOverId.current = winner.id;
-      return [winner];
+    // Reporting no collision freezes SortableContext: with no `over`, nothing shifts. While the
+    // pointer rests on a tile's artwork the grid holds still and the ring is the only thing that
+    // changes, so the target stays put long enough to actually hit it. Without this the reorder
+    // preview slid the target out from under the cursor as it approached.
+    if (isOverMergeTarget?.(args.pointerCoordinates)) {
+      lastOverId.current = null;
+      return [];
     }
+    const collisions = closestCenter(args);
+    if (collisions.length > 0) {
+      lastOverId.current = collisions[0].id;
+      return collisions;
+    }
+    // Holding the last target means releasing over a gutter still lands somewhere sensible rather
+    // than silently cancelling the drag.
     return lastOverId.current ? [{ id: lastOverId.current }] : [];
   };
 }
