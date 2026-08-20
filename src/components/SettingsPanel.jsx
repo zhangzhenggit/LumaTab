@@ -264,26 +264,6 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
           </section>
 
           <section className="group">
-            <div className="group__head"><h3 className="group__title">网站图标</h3></div>
-            <p className="group__hint">
-              {siteAccess.granted
-                ? "已允许读取你添加的网站，用于抓取各站点自己声明的高清图标。收回后不会删除已抓到的图标。"
-                : "当前只使用 Chrome 已经存有的网站图标，通常只有 16/32px。允许读取网站后，可以抓取各站点自己声明的高清图标；这项权限只用于取图标，不修改任何网页。"}
-            </p>
-            <div className="group__actions">
-              {siteAccess.granted ? (
-                <button className="ghost-button" type="button" onClick={siteAccess.revoke}>
-                  <X size={16} weight="bold" />收回网站访问权限
-                </button>
-              ) : (
-                <button className="ghost-button" type="button" onClick={siteAccess.grant}>
-                  <Globe size={16} weight="bold" />允许读取网站以抓取高清图标
-                </button>
-              )}
-            </div>
-          </section>
-
-          <section className="group">
             <div className="group__head"><h3 className="group__title">数据</h3></div>
             <p className="group__hint">导出当前全部快捷方式，或从此前导出的文件恢复。</p>
             <div className="group__actions">
@@ -309,6 +289,29 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
                 </div>
               </div>
             )}
+          </section>
+
+          {/* Last, and deliberately quiet: the page-top prompt is where this decision is actually
+              offered. What lives here is the switch to change your mind, so it reads as a footnote
+              rather than as another thing to configure. */}
+          <section className="group group--minor">
+            <div className="group__head"><h3 className="group__title">网站图标</h3></div>
+            <p className="group__hint">
+              {siteAccess.granted
+                ? "已允许读取网站以抓取高清图标。收回后已抓到的图标仍会保留。"
+                : "当前使用 Chrome 已有的低清图标。允许读取网站可抓取高清版本，仅用于取图标。"}
+            </p>
+            <div className="group__actions">
+              {siteAccess.granted ? (
+                <button className="ghost-button ghost-button--small" type="button" onClick={siteAccess.revoke}>
+                  <X size={14} weight="bold" />收回权限
+                </button>
+              ) : (
+                <button className="ghost-button ghost-button--small" type="button" onClick={siteAccess.grant}>
+                  <Globe size={14} weight="bold" />允许读取网站
+                </button>
+              )}
+            </div>
           </section>
         </div>
       </aside>

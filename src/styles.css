@@ -885,6 +885,16 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .ghost-button:hover { border-color: var(--b1); background: var(--b3); }
 .ghost-button:disabled { opacity: .5; cursor: default; }
 .ghost-button:disabled:hover { border-color: var(--b2); background: #fff; }
+/* A secondary control inside a minor group: still a button, just not competing with the ones
+   above it for attention. */
+.ghost-button--small { min-height: 30px; gap: 6px; padding: 0 11px; border-radius: 8px; font-size: 12px; }
+
+/* The last group is a footnote — the same decision is offered at the top of the new tab, so this
+   is only the place to change your mind. Quieter title, tighter box, no border above it. */
+.group--minor { padding-top: 14px; }
+.group--minor .group__title { color: var(--t2); font-size: 13px; }
+.group--minor .group__head { min-height: 20px; }
+.group--minor .group__actions { margin-top: 10px; }
 .danger-button--inline { width: auto; margin-top: 0; padding: 0 14px; min-height: 36px; font-size: 13px; }
 
 .import-confirm { margin-top: 14px; padding: 12px; border: 1px solid var(--b2); border-radius: 10px; background: var(--b3); }
