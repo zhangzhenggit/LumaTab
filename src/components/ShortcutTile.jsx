@@ -32,7 +32,7 @@ function TileFace({ item, dropMode }) {
   return (
     <div {...iconProps(item)}>
       {item.type === "folder" ? <FolderPreview folder={item} /> : <BrandIcon item={item} />}
-      {dropMode && <span className="shortcut__drop-label">{dropMode === "folder" ? "放入" : "成组"}</span>}
+      {dropMode && <span className="shortcut__drop-label" aria-hidden="true" />}
     </div>
   );
 }
@@ -57,6 +57,7 @@ export function ShortcutTile({ item, onActivate, onContextMenu, dropMode }) {
       ref={setNodeRef}
       style={style}
       className={`shortcut ${isDragging ? "shortcut--dragging" : ""} ${dropMode ? "shortcut--merge-ready" : ""}`}
+      data-tile-id={item.id}
       role="link"
       tabIndex="0"
       aria-label={item.type === "folder" ? `打开分组 ${item.name}` : `打开 ${item.name}`}

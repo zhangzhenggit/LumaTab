@@ -432,12 +432,28 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 .folder-panel__item {
   display: block;
+  cursor: pointer;
+  touch-action: none;
   padding: var(--cell-pad-y) var(--cell-pad-x);
   color: var(--t1);
   text-decoration: none;
 }
 .folder-panel__item .shortcut__name { color: var(--t1); text-shadow: none; }
 .folder-panel__item:hover .shortcut__icon { transform: translateY(-4px); }
+.folder-panel__item--dragging { opacity: .25; }
+.folder-panel__item--overlay { cursor: grabbing; }
+.folder-panel__item--overlay .shortcut__icon { transform: scale(1.06); filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .3)); }
+/* While a link is being dragged the card shows its own edge, so "inside" and "outside" — the
+   difference between keeping it and taking it out — is something you can see rather than guess. */
+.folder-panel--dragging { box-shadow: var(--glass-shadow), inset 0 0 0 2px rgba(0, 122, 255, .55); }
+.folder-stage__hint {
+  margin: 8px 0 0;
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
+  text-shadow: var(--label-shadow);
+}
+.newtab--light .folder-stage__hint { color: var(--t1); text-shadow: 0 0 4px rgba(255, 255, 255, .55); }
 
 /* ---------- menus, dialogs, toast ---------- */
 

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import { createId, normalizeUrl } from "../lib/icons";
 import { collapseThinFolders } from "../lib/shortcuts-tree";
-import { canMerge, hasSettled, holdFor } from "../lib/drag-merge";
+import { createCollisionStrategy } from "../lib/drag-collision";
+import { applyDrop, DROP_MERGE, planDrop, pointerAt } from "../lib/drag-plan";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
@@ -62,12 +62,33 @@ export function useShortcuts(notify) {
   const [activeId, setActiveId] = useState(null);
   const [overId, setOverId] = useState(null);
   const [mergeReadyId, setMergeReadyId] = useState(null);
-  const mergeTimerRef = useRef(null);
-  const dragPointRef = useRef(null);
-  const mergeTargetRef = useRef(null);
+  const lastOverRef = useRef(null);
   const shortcutsRef = useRef(shortcuts);
   shortcutsRef.current = shortcuts;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const collisionDetection = useMemo(() => createCollisionStrategy(lastOverRef), []);
+
+  // The icon is the merge target, not the whole cell — the cell includes the gutter that means
+  // "put it beside this one". Read from the DOM so the two never drift apart when the CSS changes.
+  function iconRectOf(tileId) {
+    const node = document.querySelector(`[data-tile-id="${CSS.escape(String(tileId))}"] .shortcut__icon`);
+    return node ? node.getBoundingClientRect() : null;
+  }
+
+  function planFor(event) {
+    const targetId = event.over ? String(event.over.id) : null;
+    const sourceId = String(event.active.id);
+    if (!targetId || targetId === sourceId) return { targetId: null, plan: null };
+    const source = shortcutsRef.current.find((item) => item.id === sourceId);
+    const target = shortcutsRef.current.find((item) => item.id === targetId);
+    const plan = planDrop({
+      point: pointerAt(event.activatorEvent, event.delta),
+      sourceType: source?.type,
+      targetType: target?.type,
+      targetIconRect: iconRectOf(targetId),
+    });
+    return { targetId, plan };
+  }
 
   useEffect(() => {
     let disposed = false;
@@ -99,88 +120,41 @@ export function useShortcuts(notify) {
   const ids = useMemo(() => shortcuts.map((item) => item.id), [shortcuts]);
 
   function resetDragState() {
-    clearMergeTimer();
-    dragPointRef.current = null;
-    mergeTargetRef.current = null;
+    lastOverRef.current = null;
     setActiveId(null);
     setOverId(null);
     setMergeReadyId(null);
   }
 
   function dragStart(event) {
+    lastOverRef.current = null;
     setActiveId(String(event.active.id));
   }
 
-  // Runs on every pointer move, not just when the target changes: whether this is a merge or a
-  // reorder depends on how far the tile has travelled onto its neighbour, which changes
-  // continuously. State is only written when the verdict actually flips.
-  function clearMergeTimer() {
-    if (mergeTimerRef.current) clearTimeout(mergeTimerRef.current);
-    mergeTimerRef.current = null;
-  }
-
-  // Fires on every pointer move. Each move disarms the merge and restarts the hold, so the merge
-  // can only land when the pointer has actually come to rest on a tile — sweeping past one to
-  // take its slot never arms it, however long the whole drag takes.
+  // Every move re-answers one question from the pointer's current position: is it on a tile, or in
+  // the gutter beside one? No timers, so the answer is immediate and reversible — slide onto the
+  // icon and the ring appears, slide off and it goes.
   function dragMove(event) {
-    const nextOverId = event.over ? String(event.over.id) : null;
-    if (nextOverId !== overId) setOverId(nextOverId);
-
-    // Jitter is not movement. Resetting the hold on every event — including the 1px tremble of a
-    // hand trying to stay still — meant the merge could never arm for anyone not using a
-    // trackpad with a death grip, which is what made this feel impossible to use.
-    const point = { x: event.delta.x, y: event.delta.y };
-    const parked = hasSettled(dragPointRef.current, point) && nextOverId === mergeTargetRef.current;
-    dragPointRef.current = point;
-    if (parked) return;
-
-    mergeTargetRef.current = nextOverId;
-    clearMergeTimer();
-    if (mergeReadyId !== null) setMergeReadyId(null);
-
-    const sourceId = String(event.active.id);
-    if (!nextOverId || nextOverId === sourceId) return;
-    const source = shortcuts.find((item) => item.id === sourceId);
-    const target = shortcuts.find((item) => item.id === nextOverId);
-    if (!canMerge({
-      sourceType: source?.type,
-      targetType: target?.type,
-      activeRect: event.active.rect.current.translated,
-      overRect: event.over.rect,
-    })) return;
-
-    mergeTimerRef.current = setTimeout(() => setMergeReadyId(nextOverId), holdFor(target?.type));
+    const { targetId, plan } = planFor(event);
+    if (targetId !== overId) setOverId(targetId);
+    const nextMerge = plan === DROP_MERGE ? targetId : null;
+    if (nextMerge !== mergeReadyId) setMergeReadyId(nextMerge);
   }
-
-
 
   function dragEnd(event) {
+    const { targetId, plan } = planFor(event);
     const sourceId = String(event.active.id);
-    const targetId = event.over ? String(event.over.id) : null;
-    if (!targetId || sourceId === targetId) { resetDragState(); return; }
-    setShortcuts((current) => {
-      const sourceIndex = current.findIndex((item) => item.id === sourceId);
-      const targetIndex = current.findIndex((item) => item.id === targetId);
-      if (sourceIndex < 0 || targetIndex < 0) return current;
-      const source = current[sourceIndex];
-      const target = current[targetIndex];
-      // Only the live overlap verdict decides. A folder no longer swallows anything dropped
-      // near it, so folders can be reordered like any other tile.
-      if (targetId === mergeReadyId && source.type === "link") {
-        const next = current.filter((item) => item.id !== sourceId);
-        const refreshedTargetIndex = next.findIndex((item) => item.id === targetId);
-        if (target.type === "folder") {
-          next[refreshedTargetIndex] = { ...target, children: [...target.children, source] };
-        } else if (target.type === "link") {
-          next[refreshedTargetIndex] = { id: createId("folder"), type: "folder", name: target.name, children: [target, source] };
-        }
-        return next;
-      }
-
-      return arrayMove(current, sourceIndex, targetIndex);
-    });
+    if (targetId && plan) {
+      setShortcuts((current) => applyDrop(current, {
+        plan,
+        sourceId,
+        targetId,
+        makeFolderId: () => createId("folder"),
+      }));
+    }
     resetDragState();
   }
+
 
   function addLink(values) {
     if (!values.name) throw new Error("请输入名称");
@@ -289,7 +263,7 @@ export function useShortcuts(notify) {
 
 
   return {
-    shortcuts, ready, ids, sensors,
+    shortcuts, ready, ids, sensors, collisionDetection,
     activeId, mergeReadyId,
     dragStart, dragMove, dragEnd, resetDragState,
     addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
