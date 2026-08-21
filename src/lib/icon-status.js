@@ -23,3 +23,14 @@ export function iconStatus(items) {
   visit(items);
   return { total, resolved, missing: total - resolved };
 }
+
+// The total leads, because it is the frame the other two numbers are read against: "4 个使用字母
+// 图标" means something very different out of 5 links than out of 50. When one side is empty the
+// breakdown collapses to a single clause rather than stating a zero, which reads like a fault
+// report for what is usually a perfectly ordinary grid.
+export function iconSummary({ total, resolved, missing }) {
+  if (!total) return "";
+  if (!missing) return `共 ${total} 个链接，全部使用网站图标`;
+  if (!resolved) return `共 ${total} 个链接，全部使用字母图标`;
+  return `共 ${total} 个链接：${resolved} 个使用网站图标，${missing} 个使用字母图标`;
+}

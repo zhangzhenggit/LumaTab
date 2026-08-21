@@ -3,7 +3,7 @@ import { ArrowClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@
 import { wallpaperThumbnail } from "../lib/background";
 import { GRADIENTS, gradientCss } from "../lib/background-cache-keys";
 import { validateShortcutPayload } from "../hooks/useShortcuts";
-import { iconStatus } from "../lib/icon-status";
+import { iconStatus, iconSummary } from "../lib/icon-status";
 
 function formatDate(startDate) {
   if (!/^\d{8}$/.test(startDate ?? "")) return "";
@@ -310,13 +310,7 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
                 list drifted apart, every tile fell back to a letter with nothing said anywhere —
                 no error, no log the user would ever open — and the only recovery was to uninstall
                 the extension. A number and a button turn that into something visible and fixable. */}
-            {icons.total > 0 && (
-              <p className="icon-status">
-                {icons.resolved > 0 && `${icons.resolved} 个使用网站图标`}
-                {icons.resolved > 0 && icons.missing > 0 && "，"}
-                {icons.missing > 0 && `${icons.missing} 个使用字母图标`}
-              </p>
-            )}
+            {icons.total > 0 && <p className="icon-status">{iconSummary(icons)}</p>}
             <div className="group__actions">
               {siteAccess.granted ? (
                 <button className="ghost-button ghost-button--small" type="button" onClick={siteAccess.revoke}>
