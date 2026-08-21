@@ -3,5 +3,5 @@
 // constants in each file, bumping one and forgetting the other silently broke every icon:
 // the worker resolved high-res art into the new cache while the page kept reading the old,
 // empty one and fell back to Chrome's low-res placeholder forever.
-export const ICON_CACHE_NAME = "lumatab-site-icons-v19";
+export const ICON_CACHE_NAME = "lumatab-site-icons-v20";
 export const ICON_FAILURE_KEY = "lumatab.site-icon-failures.v16";

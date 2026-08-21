@@ -1,38 +1,52 @@
 // Picks the bed a bare logo mark sits on. There are exactly two, and neither has a hue.
 //
-// An earlier revision derived a brand-tinted bed from the mark's own pixels — dominant hue via a
-// chroma-weighted histogram, lightness and saturation re-derived so the mark could not vanish
-// into it. It worked on well-drawn public logos and looked bad on everything else, which on a
-// real grid is most tiles: a wall of intranet tools with hurried icons came out as a patchwork of
-// clashing greens, reds and blues that read worse than the plain cards it replaced.
+// An earlier revision derived a brand-tinted bed from the mark's own pixels. It worked on
+// well-drawn public logos and looked bad on everything else, which on a real grid is most tiles.
+// It was also the wrong target: macOS app icons are drawn by hand, so no algorithm reaches them
+// from a favicon, and Apple's own answer for a *website* is much plainer — Safari puts site icons
+// on a light neutral card. That is what this does.
 //
-// It also turned out to be the wrong target. macOS app icons are drawn by hand, not generated,
-// so there is no algorithm that reaches them from a favicon. Apple's own answer for a *website*
-// is much plainer: Safari puts site icons on a light neutral card. That is what this does.
-//
-// The one thing a single card cannot survive is a pale mark — a white wordmark on transparency
-// would be white on white — so there is a second, darker neutral for exactly that case.
+// The one thing a single light card cannot survive is a mark that disappears into it, so there is
+// a second, darker neutral for exactly that case — and deciding when to use it is the whole job.
 
-// Mean lightness above which a mark can no longer sit on the light card.
-const PALE_MARK_CUTOFF = 0.62;
+// The white card, as relative luminance. Contrast is measured against this.
+const CARD_LUMINANCE = 1;
+// Below this contrast ratio a mark is not reliably separable from the card. Deliberately far
+// below any WCAG text threshold: a large solid shape needs nothing like the 4.5:1 body text asks
+// for, and every step up sends ordinary coloured icons to the dark bed — the failure that started
+// this. Calibrated against real artwork at the two ends: a saturated yellow (1.54) stays on the
+// card, a near-white wordmark (1.12) does not. The cost of being too eager here is visible on
+// every tile; the cost of being too lax is one icon that is merely low-contrast.
+const MIN_CARD_CONTRAST = 1.5;
 // Not pure grey: a hint of blue keeps it in the same family as the rest of the surface palette.
 const DARK_NEUTRAL = "hsl(220 6% 34%)";
 const MIN_ALPHA = 24;
 
+function toLinear(value) {
+  const channel = value / 255;
+  return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
 // `pixels` is RGBA as returned by getImageData. Returns a CSS colour for a mark that needs the
 // darker bed, or null to keep the default light card.
+//
+// Luminance, not HSL lightness. Lightness treats "pale" and "saturated but bright" as the same
+// thing, and they are not: a salmon-and-green icon scores 0.8 lightness and reads perfectly on
+// white, while a near-white wordmark scores about the same and vanishes. Contrast against the
+// card is the question actually being asked, so it is the one measured.
 export function surfaceForMark(pixels, { minAlpha = MIN_ALPHA } = {}) {
   let opaque = 0;
-  let lightnessTotal = 0;
+  let luminanceTotal = 0;
 
   for (let i = 0; i < pixels.length; i += 4) {
     if (pixels[i + 3] <= minAlpha) continue;
-    const max = Math.max(pixels[i], pixels[i + 1], pixels[i + 2]);
-    const min = Math.min(pixels[i], pixels[i + 1], pixels[i + 2]);
     opaque += 1;
-    lightnessTotal += (max + min) / 2 / 255;
+    luminanceTotal += 0.2126 * toLinear(pixels[i])
+      + 0.7152 * toLinear(pixels[i + 1])
+      + 0.0722 * toLinear(pixels[i + 2]);
   }
 
   if (!opaque) return null;
-  return lightnessTotal / opaque > PALE_MARK_CUTOFF ? DARK_NEUTRAL : null;
+  const contrast = (CARD_LUMINANCE + 0.05) / (luminanceTotal / opaque + 0.05);
+  return contrast < MIN_CARD_CONTRAST ? DARK_NEUTRAL : null;
 }
