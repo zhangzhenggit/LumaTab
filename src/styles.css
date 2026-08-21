@@ -249,17 +249,16 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    anything behind it would only leave a seam where the two shades disagree. */
 .shortcut__icon--artwork { background: transparent; }
 
-/* The bed under a bare mark: clean translucent white, the value this started with. A tinted
-   version derived from the mark's own hue was tried and abandoned — it worked on well-drawn
-   public logos and turned a real grid of intranet tools into a patchwork. A sheen-and-shading
-   version was tried after that and abandoned too: the dark half of it grimed the card and dulled
-   the letter tiles, which cost more than the depth it bought. Depth lives in --tile-shadow, on
-   the outside of the tile, where it does not touch the colour.
-
-   --tile-accent carries the darker neutral for a pale mark that would otherwise be white on
-   white; that is the only case where this surface is not white. */
+/* The bed under a bare mark: clean translucent white, one value for every tile. Three attempts at
+   deriving something better all made it worse and were removed — a brand tint taken from the
+   mark's own hue (fine on polished public logos, a patchwork on a real grid of intranet tools),
+   a sheen-and-shading pass (the shading grimed the card), and a lightness rule that swapped in a
+   dark bed for "pale" marks (it could not tell pale from bright-and-saturated, and turned whole
+   rows slate grey). Anything that varies this surface per icon has to beat plain white on a grid
+   of artwork nobody vetted, and none of them did. Depth lives in --tile-shadow instead, outside
+   the tile, where it never touches the colour. */
 .shortcut__icon--inset {
-  background: var(--tile-accent, rgba(255, 255, 255, .92));
+  background: rgba(255, 255, 255, .92);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
 }
 .shortcut__icon--letter { background: var(--tile-accent, #4060f2); }

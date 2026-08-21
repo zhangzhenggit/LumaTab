@@ -16,9 +16,6 @@ function iconFields(found, existing) {
     _iconAccent: found?.accent ?? existing._iconAccent ?? null,
     _iconNativeSize: found?.nativeSize ?? existing._iconNativeSize ?? 0,
     _iconFullBleed: found?.fullBleed ?? existing._iconFullBleed ?? false,
-    // The bed a bare mark sits on, derived from its own hue by the worker. Null keeps the
-    // neutral card, which is the right answer for grey and multi-coloured artwork.
-    _iconSurface: found?.surface ?? existing._iconSurface ?? null,
   };
 }
 
@@ -66,7 +63,6 @@ async function readCachedIcons(sites) {
         accent: response.headers.get("x-lumatab-accent"),
         nativeSize: Number(response.headers.get("x-lumatab-native-size")) || 0,
         fullBleed: response.headers.get("x-lumatab-full-bleed") === "1",
-        surface: response.headers.get("x-lumatab-surface"),
       });
     } catch {
       // One unreadable entry must not cost the other tiles their icons.

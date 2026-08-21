@@ -1,5 +1,3 @@
-import { surfaceForMark } from "./tile-surface.js";
-
 const SAMPLE_SIZE = 32;
 const MIN_ALPHA = 24;
 const MIN_VISIBLE_PIXELS = 12;
@@ -77,9 +75,7 @@ export async function analyzeIconBlob(blob) {
       if (pixels[index] > MIN_ALPHA) visible += 1;
     }
     const { fullBleed, accentColor } = edgeProfile(pixels, SAMPLE_SIZE);
-    // Only a bare mark needs a bed derived for it; full-bleed artwork already is one.
-    const surfaceColor = fullBleed ? null : surfaceForMark(pixels, { minAlpha: MIN_ALPHA });
-    return { width, height, visible: visible >= MIN_VISIBLE_PIXELS, fullBleed, accentColor, surfaceColor };
+    return { width, height, visible: visible >= MIN_VISIBLE_PIXELS, fullBleed, accentColor };
   } catch {
     return null;
   }
