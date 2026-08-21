@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hasSiteAccess, requestSiteAccess, revokeSiteAccess } from "../lib/site-access";
-import { refreshSiteIcons } from "../lib/site-icon-cache";
+import { refreshSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
 const DISMISSED_KEY = "lumatab.siteAccess.dismissed";
 
@@ -34,6 +34,7 @@ async function writeDismissed() {
 export function useSiteAccess(shortcuts, ready) {
   const [granted, setGranted] = useState(null);
   const [dismissed, setDismissed] = useState(true);
+  const [refetching, setRefetching] = useState(false);
   const shortcutsRef = useRef(shortcuts);
   shortcutsRef.current = shortcuts;
 
@@ -64,6 +65,20 @@ export function useSiteAccess(shortcuts, ready) {
     setGranted(false);
   }, []);
 
+  // The manual escape hatch. Until this existed, a grid stuck on letter tiles could only be fixed
+  // by uninstalling the extension — the icon cache and its failure list both live past a reload,
+  // so nothing the user could reach would make the worker try again.
+  const refetch = useCallback(async () => {
+    setRefetching(true);
+    await refreshSiteIcons(shortcutsRef.current);
+  }, []);
+
+  // The worker announces completion whether the run found anything or not, so the button always
+  // comes back rather than spinning forever on a batch that resolved nothing.
+  useEffect(() => subscribeToIconUpdates((diagnostics) => {
+    if (diagnostics?.complete) setRefetching(false);
+  }), []);
+
   const dismiss = useCallback(() => {
     setDismissed(true);
     void writeDismissed();
@@ -77,6 +92,8 @@ export function useSiteAccess(shortcuts, ready) {
     granted,
     grant,
     revoke,
+    refetch,
+    refetching,
     dismiss,
     // `granted === null` means the answer is still loading; showing the banner then would make it
     // flash on every page load for users who already granted it.

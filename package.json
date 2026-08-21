@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build && node scripts/prepare-sites-build.mjs",
     "build:extension": "vite build",
-    "test": "node --test tests/icons.test.mjs tests/cache-keys.test.mjs tests/html-icon-parser.test.mjs tests/wallpaper.test.mjs tests/wallpaper-flow.test.mjs tests/shortcuts-tree.test.mjs tests/drag-plan.test.mjs tests/manifest.test.mjs tests/site-access.test.mjs tests/resilience.test.mjs tests/tile-appearance.test.mjs",
+    "test": "node --test tests/icons.test.mjs tests/cache-keys.test.mjs tests/html-icon-parser.test.mjs tests/wallpaper.test.mjs tests/wallpaper-flow.test.mjs tests/shortcuts-tree.test.mjs tests/drag-plan.test.mjs tests/manifest.test.mjs tests/site-access.test.mjs tests/resilience.test.mjs tests/tile-appearance.test.mjs tests/icon-status.test.mjs",
     "preview": "vite preview",
     "test:sites": "node --test tests/sites-worker.test.mjs",
     "icons": "node scripts/make-extension-icons.mjs",

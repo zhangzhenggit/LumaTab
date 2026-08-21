@@ -3,6 +3,7 @@ import { ArrowClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@
 import { wallpaperThumbnail } from "../lib/background";
 import { GRADIENTS, gradientCss } from "../lib/background-cache-keys";
 import { validateShortcutPayload } from "../hooks/useShortcuts";
+import { iconStatus } from "../lib/icon-status";
 
 function formatDate(startDate) {
   if (!/^\d{8}$/.test(startDate ?? "")) return "";
@@ -87,6 +88,10 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
   const [importError, setImportError] = useState("");
   const [pendingImport, setPendingImport] = useState(null);
   const fileRef = useRef(null);
+  // Read from the grid on screen, not from the worker's last run: after a reload nothing runs at
+  // all, because everything is already cached, and a status that only appears mid-batch is
+  // exactly the status nobody sees when something is wrong.
+  const icons = iconStatus(shortcuts);
   // Held in a ref so the open-effect depends only on `open`. Depending on the api object made
   // the effect re-run on every render, refetching the library in a loop and wiping the pending
   // import each time.
@@ -301,6 +306,17 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
                 ? "已允许读取网站以抓取高清图标。收回后已抓到的图标仍会保留。"
                 : "当前使用 Chrome 已有的低清图标。允许读取网站可抓取高清版本，仅用于取图标。"}
             </p>
+            {/* The count is the point of this whole section. When the icon cache and its failure
+                list drifted apart, every tile fell back to a letter with nothing said anywhere —
+                no error, no log the user would ever open — and the only recovery was to uninstall
+                the extension. A number and a button turn that into something visible and fixable. */}
+            {icons.total > 0 && (
+              <p className={`icon-status ${icons.missing ? "icon-status--warn" : ""}`}>
+                {icons.missing
+                  ? `${icons.resolved} / ${icons.total} 个网站图标已取到，${icons.missing} 个用的是字母图标`
+                  : `${icons.total} 个网站图标已全部取到`}
+              </p>
+            )}
             <div className="group__actions">
               {siteAccess.granted ? (
                 <button className="ghost-button ghost-button--small" type="button" onClick={siteAccess.revoke}>
@@ -309,6 +325,17 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
               ) : (
                 <button className="ghost-button ghost-button--small" type="button" onClick={siteAccess.grant}>
                   <Globe size={14} weight="bold" />允许读取网站
+                </button>
+              )}
+              {icons.total > 0 && (
+                <button
+                  className="ghost-button ghost-button--small"
+                  type="button"
+                  onClick={siteAccess.refetch}
+                  disabled={siteAccess.refetching}
+                >
+                  <ArrowClockwise size={14} weight="bold" />
+                  {siteAccess.refetching ? "正在重新抓取…" : "重新抓取图标"}
                 </button>
               )}
             </div>
