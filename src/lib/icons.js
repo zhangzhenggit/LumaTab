@@ -54,7 +54,7 @@ export function accentFor(name, url = "", override = null) {
 const CJK = /[㐀-鿿豈-﫿぀-ヿ가-힯]/;
 
 // One or two glyphs, the way WeTab's generated tiles read: word-initials when the name has
-// obvious parts ("AppNew" -> AN, "code-review" -> CR), otherwise the opening pair. CJK stops at
+// obvious parts ("AirTable" -> AT, "code-review" -> CR), otherwise the opening pair. CJK stops at
 // a single character because two full-width glyphs overflow a 60px tile.
 // `.letter-icon` steps its font size down per glyph, so up to four still fit inside a 60px tile.
 // Past that the text is too small to read at tile size, which defeats the point of a label.

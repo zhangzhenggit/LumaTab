@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LumaTab · 浮光新页 隐私政策</title>
+<style>
+  :root { color-scheme: light dark; --ink:#1c1c1e; --muted:#6b6b70; --line:#e3e3e8; --bg:#fff; --soft:#f7f7f9; --link:#2f6bf3; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#e9e9ec; --muted:#a0a0a8; --line:#33333a; --bg:#17171a; --soft:#1f1f24; --link:#7aa2ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:48px 20px 96px; color:var(--ink); background:var(--bg);
+    font:16px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { margin:0 0 8px; font-size:30px; line-height:1.3; }
+  h2 { margin:44px 0 12px; font-size:20px; }
+  h3 { margin:32px 0 8px; font-size:17px; }
+  p { margin:12px 0; }
+  ul, ol { margin:12px 0; padding-left:24px; }
+  li { margin:6px 0; }
+  a { color:var(--link); }
+  code { padding:2px 6px; border-radius:5px; background:var(--soft); font-size:.9em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  hr { margin:40px 0; border:0; border-top:1px solid var(--line); }
+  .table-wrap { overflow-x:auto; margin:18px 0; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { padding:10px 12px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+  th { background:var(--soft); font-weight:600; }
+  footer { margin-top:56px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+<h1>LumaTab · 浮光新页 隐私政策</h1>
+<p>最后更新：2026-08-20</p>
+<h2>一句话说明</h2>
+<p><strong>LumaTab 不收集、不上传、不共享任何个人数据。</strong> 所有内容只保存在你自己浏览器的本地存储中，开发者无法访问。</p>
+<h2>我们保存什么，保存在哪</h2>
+<p>LumaTab 没有服务器，也没有任何后端账号体系。以下数据全部通过 Chrome 的<code>chrome.storage.local</code> 和 Cache Storage 保存在<strong>你本机的浏览器配置目录</strong>中：</p>
+<div class="table-wrap"><table><thead><tr><th>内容</th><th>存储位置</th><th>说明</th></tr></thead><tbody><tr><td>快捷方式、文件夹、自定义图标文字与底色</td><td><code>chrome.storage.local</code></td><td>你手动添加或导入的网址与名称</td></tr><tr><td>壁纸设置</td><td><code>chrome.storage.local</code></td><td>当前壁纸、纯色背景选择、亮度与模糊数值</td></tr><tr><td>图标获取失败记录</td><td><code>chrome.storage.local</code></td><td>仅用于 10 分钟内不重复请求同一站点</td></tr><tr><td>壁纸图片文件</td><td>Cache Storage</td><td>从 Bing 下载的每日图片</td></tr><tr><td>网站图标文件</td><td>Cache Storage</td><td>来自 Chrome 本地缓存，或（在你授权后）从你添加的网站下载</td></tr></tbody></table></div>
+<p>卸载扩展时，Chrome 会一并删除上述全部内容。你也可以随时在扩展的设置面板中「导出为 JSON」自行备份。</p>
+<h2>扩展会连接哪些网络地址</h2>
+<p>LumaTab 只发起两类网络请求，都不携带任何身份标识：</p>
+<ol><li><strong><code>https://www.bing.com</code></strong> —— 获取每日壁纸的图片列表与图片文件。这是安装时唯一申请的站点权限。</li><li><strong>你自己添加的网站</strong>（需要你另行授权，见下节）—— 读取该网站公开声明的图标（<code>/favicon.ico</code>、页面中的 <code>&lt;link rel="icon"&gt;</code>、<code>apple-touch-icon</code>、Web App Manifest 中声明的图标）。</li></ol>
+<p>这些请求由扩展的后台 Service Worker 发出，<strong>只读取图标资源，不修改网页内容，不注入任何脚本</strong>，也不会把请求内容发送到第三方。</p>
+<p>需要特别说明的是：扩展<strong>不会把你添加的任何网址发送给我们或任何第三方</strong>。图标是从你的电脑直接向该网站请求的——正因为如此，才需要下面这项权限。</p>
+<h2>关于 <code>http://*/*</code> 与 <code>https://*/*</code> 权限（可选，默认不授予）</h2>
+<p>这项权限是<strong>可选权限</strong>，安装时不申请，默认处于未授予状态。未授予时扩展完全可用，只是图标改用 Chrome 本地已有的记录（通常只有 16/32px）。</p>
+<p>你可以在新标签页顶部的提示条上点「允许」，或在设置面板最底部的「网站图标」中授予；授予后可随时在同一处收回，也可以在 <code>chrome://extensions</code> 中收回。</p>
+<p>授予后，这项权限<strong>仅用于读取你自己添加的那些网站的图标</strong>。扩展不会浏览、不会遍历、也不会主动访问你没有添加到新标签页上的任何网址。它没有 content script，不会在你访问的网页中运行任何代码。</p>
+<p>图标请求沿用 Chrome 当前的系统代理与网络设置，扩展不另设代理、不改变路由。</p>
+<h2>关于 <code>favicon</code> 权限</h2>
+<p>这是安装时申请的必需权限，用于读取 <strong>Chrome 本地已有的图标缓存</strong>。在未授予上述站点权限时，它是图标的唯一来源；在已授予时，它是网站图标取不到（例如需要登录、或位于内网）时的兜底。这是纯本地读取，不产生网络请求。</p>
+<h2>我们不做的事</h2>
+<ul><li>不收集浏览历史、书签、Cookie、密码或任何表单内容</li><li>不使用分析、埋点、崩溃上报或广告 SDK</li><li>不建立用户账号，不生成设备标识</li><li>不向任何第三方出售、出租或共享数据</li><li>不在你访问的网页中注入或执行任何代码</li></ul>
+<h2>儿童隐私</h2>
+<p>本扩展不面向 13 岁以下儿童，也不会有意收集其任何信息——事实上它不收集任何人的信息。</p>
+<h2>政策变更</h2>
+<p>如果未来版本引入了会改变上述任何一条的功能，本文件将在该版本发布前更新，并在扩展的更新说明中注明。</p>
+<h2>联系方式</h2>
+<p>问题或疑虑请通过项目仓库的 Issue 提出。</p>
+<footer>本页由 <code>docs/PRIVACY.md</code> 生成，请勿直接编辑；改动源文件后重新运行 <code>npm run privacy:page</code>。</footer>
+</main>
+</body>
+</html>

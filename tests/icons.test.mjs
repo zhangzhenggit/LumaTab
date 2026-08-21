@@ -23,12 +23,12 @@ test("accentFor falls back to the name when the URL cannot be parsed", () => {
 });
 
 test("monogramFor takes one or two glyphs from the name", () => {
-  assert.equal(monogramFor("AppNew"), "AN");
+  assert.equal(monogramFor("AirTable"), "AT");
   assert.equal(monogramFor("code-review"), "CR");
   assert.equal(monogramFor("Grafana Prod"), "GP");
-  assert.equal(monogramFor("xcloud"), "XC");
+  assert.equal(monogramFor("nextcloud"), "NE");
   assert.equal(monogramFor("开发代码"), "开");
-  assert.equal(monogramFor("  tbjira"), "TB");
+  assert.equal(monogramFor("  wikijs"), "WI");
   assert.equal(monogramFor("x"), "X");
   assert.equal(monogramFor(""), "?");
 });
@@ -37,10 +37,10 @@ test("an explicit monogram overrides the one derived from the name", () => {
   assert.equal(monogramFor("翻译", "译"), "译");
   assert.equal(monogramFor("Grafana Prod", "GF"), "GF");
   // Blank or whitespace-only falls back to the derived value rather than rendering nothing.
-  assert.equal(monogramFor("AppNew", ""), "AN");
-  assert.equal(monogramFor("AppNew", "   "), "AN");
+  assert.equal(monogramFor("AirTable", ""), "AT");
+  assert.equal(monogramFor("AirTable", "   "), "AT");
   // Never more glyphs than the tile is sized for.
   // Clamped to what the tile can still render legibly; the CSS steps the font size down per glyph.
-  assert.equal(monogramFor("AppNew", "ABCDEF"), "ABCD");
+  assert.equal(monogramFor("AirTable", "ABCDEF"), "ABCD");
   assert.equal(trimMonogram("测试文字内容"), "测试文字");
 });

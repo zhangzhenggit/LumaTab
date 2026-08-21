@@ -41,17 +41,63 @@ npm run package
 产出 `dist/lumatab-<版本>.zip`。打包脚本会拒绝把任何 `data/` 或 `imported-shortcuts`
 文件打进去——个人书签不会外泄。上传的就是这个 zip。
 
-## 三、托管隐私政策
+## 三、用 GitHub Pages 托管隐私政策
 
-后台要求填一个**公开可访问**的 URL。`docs/PRIVACY.md` 已经写好，挑一种方式挂出去：
+后台要求填一个**公开可访问**的 URL。仓库已经是 `github.com/zhangzhenggit/LumaTab`，
+用它的 Pages 最省事，全程免费、无需服务器。
 
-- **GitHub Pages**：仓库 Settings → Pages → 选分支和 `/docs` 目录，地址形如
-  `https://<用户名>.github.io/<仓库名>/PRIVACY`
-- **仓库直链**：把仓库设为公开，用
-  `https://github.com/<用户名>/<仓库名>/blob/main/docs/PRIVACY.md`
-- 任何你自己的静态站点也行
+### 3.1 先确认页面是最新的
 
-拿到 URL 后，回填到 `STORE-LISTING.md` 详细说明末尾的占位符里。
+```powershell
+npm run privacy:page
+```
+
+这会把 `docs/PRIVACY.md` 渲染成 `docs/index.html`——GitHub Pages 实际提供的就是这个文件。
+
+> 为什么不直接让 Pages 提供 `.md`：Jekyll 只处理带 YAML front matter 的 markdown，
+> 裸的 `PRIVACY.md` 会被原样输出，浏览器里看到的是一堆 `#` 和 `|`，不适合交给审核员。
+> **`index.html` 是生成产物，不要手改**；要改内容就改 `PRIVACY.md` 再跑一次这条命令。
+
+### 3.2 推送到 GitHub
+
+```powershell
+git push origin main
+```
+
+### 3.3 开启 Pages
+
+1. 打开 <https://github.com/zhangzhenggit/LumaTab/settings/pages>
+2. **Source** 选 `Deploy from a branch`
+3. **Branch** 选 `main`，右边的目录下拉选 **`/docs`**
+4. 点 **Save**
+
+等 1–2 分钟，页面顶部会出现绿色的 "Your site is live at ..."。地址是：
+
+```
+https://zhangzhenggit.github.io/LumaTab/
+```
+
+`docs/index.html` 作为目录首页，所以根地址直接就是隐私政策页，不用带文件名。
+
+### 3.4 两个前提条件
+
+- **仓库必须是公开的**（免费账号的 Pages 只支持公开仓库）。在
+  Settings → General → 最下方 Danger Zone → `Change repository visibility` 改。
+- 公开会连**全部提交历史**一起公开。已经核对过：`public/data/imported-shortcuts.json`
+  从未被提交（一直在 `.gitignore` 里），全历史也搜不到内网地址；测试里原本用作示例的
+  几个内部系统名也已经换成中性名称。
+
+### 3.5 回填 URL
+
+拿到地址后填到两个地方：
+
+- `docs/STORE-LISTING.md` 详细说明末尾的 `<在这里填你托管后的 URL>`
+- 开发者后台「隐私权规范」标签页的「隐私政策网址」字段
+
+### 备选方案
+
+不想公开仓库的话：把 `docs/index.html` 传到任何静态托管（Cloudflare Pages、Vercel、
+Netlify 都有免费额度，也都支持私有仓库），拿到的 URL 一样能用。
 
 ## 四、在开发者后台提交
 
