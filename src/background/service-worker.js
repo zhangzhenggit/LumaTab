@@ -221,6 +221,7 @@ async function verifiedIconBlob(response) {
       blob,
       accentColor: analysis.accentColor,
       fullBleed: analysis.fullBleed,
+      surfaceColor: analysis.surfaceColor,
       nativeSize: Math.min(analysis.width, analysis.height),
     };
   }
@@ -234,7 +235,8 @@ async function verifiedIconBlob(response) {
   // modern favicons. sanitizeSvg already guarantees a well-formed root with at least one drawable
   // element, and if the markup somehow still fails to paint, the tile's onError falls back to a
   // letter. Vector art scales to any size, so nativeSize stays 0.
-  return { blob: svg, accentColor: null, fullBleed: false, nativeSize: 0 };
+  // No pixels to sample, so no bed can be derived either: vector marks keep the neutral card.
+  return { blob: svg, accentColor: null, fullBleed: false, surfaceColor: null, nativeSize: 0 };
 }
 
 async function fetchIconCandidate(url) {
@@ -369,6 +371,7 @@ async function chromeFaviconCandidate(pageUrl) {
       blob,
       accentColor: analysis.accentColor,
       fullBleed: analysis.fullBleed,
+      surfaceColor: analysis.surfaceColor,
       nativeSize: Math.min(analysis.width, analysis.height),
     };
   } catch {
@@ -455,6 +458,7 @@ async function resolveSiteIcons(sites, devicePixelRatio = 1, refresh = false) {
       if (result.accentColor) headers["x-lumatab-accent"] = result.accentColor;
       if (result.nativeSize) headers["x-lumatab-native-size"] = String(result.nativeSize);
       if (result.fullBleed) headers["x-lumatab-full-bleed"] = "1";
+      if (result.surfaceColor) headers["x-lumatab-surface"] = result.surfaceColor;
       await cache.put(await iconCacheRequest(pageUrl), new Response(result.blob, { headers }));
       diagnostics.resolved += 1;
       progress.report();

@@ -34,7 +34,9 @@ export function iconAppearance(item, targetPx = TILE_CSS_PX) {
   if (item.type === "folder") return { kind: "folder", accent: null };
   if (item.iconMode !== "generated" && item._iconUrl) {
     if (item._iconFullBleed) return { kind: "artwork", accent: null };
-    return { kind: "inset", accent: null, insetSize: Math.round(targetPx * INSET_SCALE) };
+    // The bed comes from the mark's own hue (see tile-surface.js). Null means the artwork offered
+    // no single brand hue, and the neutral card in CSS takes over.
+    return { kind: "inset", accent: item._iconSurface ?? null, insetSize: Math.round(targetPx * INSET_SCALE) };
   }
   return { kind: "letter", accent: accentFor(item.name, item.url, item.accentColor) };
 }

@@ -243,8 +243,10 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    makes, which is why a transparent mark there sits straight on the wallpaper with no card
    behind it. Only art too small to scale up gets a surface to sit on. */
 .shortcut__icon--artwork { background: transparent; }
+/* The bed under a bare mark. --tile-accent is the hue derived from the mark itself; the
+   fallback is the neutral card, which grey and multi-coloured artwork correctly lands on. */
 .shortcut__icon--inset {
-  background: rgba(255, 255, 255, .92);
+  background: var(--tile-accent, rgba(255, 255, 255, .92));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
 }
 .shortcut__icon--letter { background: var(--tile-accent, #4060f2); }
@@ -474,7 +476,8 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   /* Same curve as the tiles it previews, at the same 22.37% share of a 20px cell. */
   border-radius: 4.5px;
   corner-shape: var(--icon-corner);
-  background: rgba(255, 255, 255, .82);
+  /* Same derived bed as the full-size tile, so a folder previews what it actually contains. */
+  background: var(--tile-accent, rgba(255, 255, 255, .82));
 }
 .folder-preview__cell > * { width: 100%; height: 100%; }
 /* Artwork with its own background fills its chip, exactly as it fills a full tile. A bare mark is

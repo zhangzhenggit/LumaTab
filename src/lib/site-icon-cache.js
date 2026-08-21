@@ -7,14 +7,27 @@ function visitLinks(items, callback) {
   }
 }
 
+// One shape for a tile's icon fields, so the "found it" and "leave it alone" branches cannot
+// drift apart as fields are added — which is how a new field silently reaches only half the tiles.
+function iconFields(found, existing) {
+  return {
+    _iconUrl: found?.url ?? existing._iconUrl ?? null,
+    _iconSource: found?.source ?? existing._iconSource ?? null,
+    _iconAccent: found?.accent ?? existing._iconAccent ?? null,
+    _iconNativeSize: found?.nativeSize ?? existing._iconNativeSize ?? 0,
+    _iconFullBleed: found?.fullBleed ?? existing._iconFullBleed ?? false,
+    // The bed a bare mark sits on, derived from its own hue by the worker. Null keeps the
+    // neutral card, which is the right answer for grey and multi-coloured artwork.
+    _iconSurface: found?.surface ?? existing._iconSurface ?? null,
+  };
+}
+
 // Icons only ever get added, never revoked: a tile that already drew artwork keeps it, so the
 // grid never flickers back to a letter because one later lookup came up empty.
 function applyIconUrls(items, icons) {
-  return items.map((item) => item.type === "folder"
+  return items.map((item) => (item.type === "folder"
     ? { ...item, children: applyIconUrls(item.children ?? [], icons) }
-    : icons.has(item.id)
-      ? { ...item, _iconUrl: icons.get(item.id).url, _iconSource: icons.get(item.id).source, _iconAccent: icons.get(item.id).accent ?? null, _iconNativeSize: icons.get(item.id).nativeSize ?? 0, _iconFullBleed: icons.get(item.id).fullBleed ?? false }
-      : { ...item, _iconUrl: item._iconUrl ?? null, _iconSource: item._iconSource ?? null, _iconAccent: item._iconAccent ?? null, _iconNativeSize: item._iconNativeSize ?? 0, _iconFullBleed: item._iconFullBleed ?? false });
+    : { ...item, ...iconFields(icons.get(item.id), item) }));
 }
 
 async function urlHash(value) {
@@ -53,6 +66,7 @@ async function readCachedIcons(sites) {
         accent: response.headers.get("x-lumatab-accent"),
         nativeSize: Number(response.headers.get("x-lumatab-native-size")) || 0,
         fullBleed: response.headers.get("x-lumatab-full-bleed") === "1",
+        surface: response.headers.get("x-lumatab-surface"),
       });
     } catch {
       // One unreadable entry must not cost the other tiles their icons.
