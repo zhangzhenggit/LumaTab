@@ -30,3 +30,17 @@ test("icon cache identity is shared, not duplicated per file", async () => {
     assert.doesNotMatch(source, /const\s+ICON_FAILURE_KEY\s*=/);
   }
 });
+
+// The two names are one generation. They drifted apart once — the cache was bumped five times
+// while the failure key stayed several versions behind — and the result was a grid of letter
+// tiles: every icon forced to re-resolve, then skipped because of a failure list that a cache
+// rename does not clear. Nothing logged an error, so only the pixels showed it.
+test("the icon cache and its failure list share one generation", async () => {
+  const source = await (await import("node:fs/promises"))
+    .readFile(new URL("../src/lib/icon-cache-keys.js", import.meta.url), "utf8");
+  const { ICON_CACHE_NAME, ICON_FAILURE_KEY } = await import("../src/lib/icon-cache-keys.js");
+  assert.match(source, /const GENERATION = /, "both names must come from one constant");
+  const generation = /const GENERATION = "([^"]+)"/.exec(source)[1];
+  assert.ok(ICON_CACHE_NAME.endsWith(generation), `${ICON_CACHE_NAME} is not on ${generation}`);
+  assert.ok(ICON_FAILURE_KEY.endsWith(generation), `${ICON_FAILURE_KEY} is not on ${generation}`);
+});
