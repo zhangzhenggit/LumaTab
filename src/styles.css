@@ -243,10 +243,11 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    makes, which is why a transparent mark there sits straight on the wallpaper with no card
    behind it. Only art too small to scale up gets a surface to sit on. */
 .shortcut__icon--artwork { background: transparent; }
-/* The bed under a bare mark. --tile-accent is the hue derived from the mark itself; the
-   fallback is the neutral card, which grey and multi-coloured artwork correctly lands on. */
+/* The bed under a bare mark: a light neutral card, which is what Safari puts site icons on and
+   what a generated brand tint could not beat on a real grid. --tile-accent only ever carries the
+   darker neutral, for a pale mark that would otherwise be white on white. */
 .shortcut__icon--inset {
-  background: var(--tile-accent, rgba(255, 255, 255, .92));
+  background: var(--tile-accent, rgba(250, 250, 252, .94));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
 }
 .shortcut__icon--letter { background: var(--tile-accent, #4060f2); }
