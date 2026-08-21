@@ -220,12 +220,33 @@ async function main() {
     }
 
     // 440x280 promotional tile, rendered from the same design tokens as the product.
-    const tile = promoTileHtml();
-    await writeFile(resolve(OUT, "promo-tile.html"), tile);
-    await page.send("Emulation.setDeviceMetricsOverride", { width: 440, height: 280, deviceScaleFactor: 1, mobile: false });
-    await page.send("Page.navigate", { url: "data:text/html;charset=utf-8," + encodeURIComponent(tile) });
-    await wait(1200);
-    await shot("promo-440x280");
+    // Promotional tiles. Both must be 24-bit PNG with no alpha channel — the store rejects RGBA
+    // here — which is what captureScreenshot produces when the page paints an opaque background.
+    for (const [name, width, height, html] of [
+      ["promo-440x280", 440, 280, promoTileHtml(440, 280)],
+      ["promo-1400x560", 1400, 560, promoTileHtml(1400, 560)],
+    ]) {
+      await page.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+      await page.send("Page.navigate", { url: "data:text/html;charset=utf-8," + encodeURIComponent(html) });
+      await wait(1000);
+      await shot(name);
+    }
+
+    // The store icon is a separate asset from the toolbar icon, and this is why: the image
+    // guidelines want the artwork at 96x96 inside a 128x128 canvas, with the remaining 16px on
+    // each side transparent. The manifest icon is edge-to-edge on purpose — correct in a browser
+    // toolbar, oversized next to every other listing in the store grid.
+    const iconData = (await readFile(resolve(BUILD, "assets/icons/icon-128.png"))).toString("base64");
+    const iconPage = `<!doctype html><meta charset="utf-8"><style>
+      html,body{margin:0;width:128px;height:128px;background:transparent}
+      img{position:absolute;left:16px;top:16px;width:96px;height:96px}
+      </style><img src="data:image/png;base64,${iconData}">`;
+    await page.send("Emulation.setDeviceMetricsOverride", { width: 128, height: 128, deviceScaleFactor: 1, mobile: false });
+    await page.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } });
+    await page.send("Page.navigate", { url: "data:text/html;charset=utf-8," + encodeURIComponent(iconPage) });
+    await wait(900);
+    await shot("store-icon-128");
+    await page.send("Emulation.setDefaultBackgroundColorOverride");
 
     page.close();
   } finally {
@@ -239,19 +260,22 @@ async function main() {
   console.log("\n全部产物在:", OUT);
 }
 
-function promoTileHtml() {
+// One layout at two sizes: everything scales off the canvas height so the 1400x560 marquee is the
+// same design as the 440x280 tile rather than a second thing to keep in sync.
+function promoTileHtml(width, height) {
+  const s = height / 280;
   return `<!doctype html><meta charset="utf-8"><style>
-  html,body{margin:0;width:440px;height:280px;overflow:hidden}
+  html,body{margin:0;width:${width}px;height:${height}px;overflow:hidden}
   body{display:grid;place-items:center;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
     background:linear-gradient(150deg,#1b2a6b 0%,#2f3f8f 55%,#4a4fb0 100%)}
   .wrap{text-align:center;color:#fff}
-  .mark{width:78px;height:78px;margin:0 auto 16px;border-radius:22px;
+  .mark{width:${78 * s}px;height:${78 * s}px;margin:0 auto ${16 * s}px;border-radius:${22 * s}px;
     background:linear-gradient(160deg,#ffd27a,#ff9d4d);position:relative;overflow:hidden;
-    box-shadow:0 10px 28px rgba(0,0,0,.32)}
-  .mark::after{content:"";position:absolute;left:0;right:0;bottom:26px;height:3px;background:rgba(255,255,255,.92)}
-  h1{margin:0;font-size:30px;font-weight:600;letter-spacing:.02em}
-  p{margin:8px 0 0;font-size:14px;color:rgba(255,255,255,.78)}
-  </style><div class="wrap"><div class="mark"></div><h1>LumaTab · 浮光新页</h1><p>干净的新标签页 · 无广告 · 无账号</p></div>`;
+    box-shadow:0 ${10 * s}px ${28 * s}px rgba(0,0,0,.32)}
+  .mark::after{content:"";position:absolute;left:0;right:0;bottom:${26 * s}px;height:${3 * s}px;background:rgba(255,255,255,.92)}
+  h1{margin:0;font-size:${30 * s}px;font-weight:600;letter-spacing:.02em}
+  p{margin:${8 * s}px 0 0;font-size:${14 * s}px;color:rgba(255,255,255,.78)}
+  </style><div class="wrap"><div class="mark"></div><h1>LumaTab · 浮光新页</h1><p>干净的新标签页 · 无广告 · 无账号 · 不收集数据</p></div>`;
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
