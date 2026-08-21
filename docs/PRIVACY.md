@@ -77,4 +77,7 @@ LumaTab 只发起两类网络请求，都不携带任何身份标识：
 
 ## 联系方式
 
-问题或疑虑请通过项目仓库的 Issue 提出。
+本扩展的完整源代码是公开的，欢迎自行核对本文所述的每一条：
+
+- 项目仓库：[github.com/zhangzhenggit/LumaTab](https://github.com/zhangzhenggit/LumaTab)
+- 问题与疑虑：[提交 Issue](https://github.com/zhangzhenggit/LumaTab/issues)
