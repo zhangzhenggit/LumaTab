@@ -103,6 +103,17 @@ test("the settings launcher keeps its styles", async () => {
   assert.match(css, /\.site-access__grant\s*\{/);
 });
 
+test("tiles keep Apple's squircle geometry", async () => {
+  const css = await (await import("node:fs/promises"))
+    .readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  // 22.37% of the 60px tile. A radius alone is a rounded rectangle; the corner-shape is what
+  // makes it a superellipse, and Chromium below 139 drops that line silently — so if either half
+  // goes missing the tiles quietly regress to the old look with nothing failing.
+  assert.match(css, /--icon-radius:\s*13\.4px/);
+  assert.match(css, /--icon-corner:\s*squircle/);
+  assert.match(css, /corner-shape:\s*var\(--icon-corner\)/);
+});
+
 test("switching to auto keeps the current picture and only follows Bing from the next rotation", async () => {
   const images = [
     { startDate: "20260818", urlbase: "/a", imageUrl: "https://www.bing.com/th?id=a" },

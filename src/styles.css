@@ -7,7 +7,15 @@
 :root {
   /* Grid + tile geometry */
   --icon-size: 60px;
-  --icon-radius: 16px;
+  /* Apple's icon grid: the corner radius is ~22.37% of the icon's width, and the corner is a
+     superellipse rather than a circular arc — the "squircle". 22.37% of 60px is 13.4px. WeTab
+     measured 16px here, but 16px of *circular* arc is a rounded rectangle, which is the one
+     thing an iOS home screen is not. See --icon-corner below for the curve itself. */
+  --icon-radius: 13.4px;
+  /* Chromium 139+ draws the real superellipse; `squircle` is exactly superellipse(2). Older
+     Chrome ignores the declaration entirely and keeps the plain rounded corner, so this is a
+     free upgrade rather than something to feature-detect. */
+  --icon-corner: squircle;
   --icon-gap: 60px;
   --cell-pad-x: 30px;
   --cell-pad-y: 15px;
@@ -223,6 +231,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   place-items: center;
   overflow: hidden;
   border-radius: var(--icon-radius);
+  corner-shape: var(--icon-corner);
   filter: var(--tile-shadow);
   transition: transform 200ms ease;
 }
@@ -462,7 +471,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   display: grid;
   place-items: stretch;
   overflow: hidden;
-  border-radius: 6px;
+  /* Same curve as the tiles it previews, at the same 22.37% share of a 20px cell. */
+  border-radius: 4.5px;
+  corner-shape: var(--icon-corner);
   background: rgba(255, 255, 255, .82);
 }
 .folder-preview__cell > * { width: 100%; height: 100%; }
