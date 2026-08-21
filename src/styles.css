@@ -249,26 +249,20 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    anything behind it would only leave a seam where the two shades disagree. */
 .shortcut__icon--artwork { background: transparent; }
 
-/* The two surfaces we draw ourselves. The bed under a bare mark is a light neutral card — what
-   Safari puts site icons on, and what a generated brand tint could not beat on a real grid;
-   --tile-accent carries either the darker neutral (for a pale mark that would otherwise be white
-   on white) or the letter tile's colour.
+/* The bed under a bare mark: clean translucent white, the value this started with. A tinted
+   version derived from the mark's own hue was tried and abandoned — it worked on well-drawn
+   public logos and turned a real grid of intranet tools into a patchwork. A sheen-and-shading
+   version was tried after that and abandoned too: the dark half of it grimed the card and dulled
+   the letter tiles, which cost more than the depth it bought. Depth lives in --tile-shadow, on
+   the outside of the tile, where it does not touch the colour.
 
-   The sheen and the two hairlines are what stop these reading as flat rectangles of paint. A real
-   icon is a surface catching light from above: brightest along the top edge, turning under at the
-   bottom. Painted as layers over --tile-accent so every variant gets the same treatment from one
-   rule instead of each colour needing its own. */
-.shortcut__icon--inset,
-.shortcut__icon--letter {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, 0) 58%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0) 62%, rgba(0, 0, 0, .07)),
-    var(--tile-accent, rgb(248, 248, 251));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .45),
-    inset 0 0 0 1px rgba(0, 0, 0, .07);
+   --tile-accent carries the darker neutral for a pale mark that would otherwise be white on
+   white; that is the only case where this surface is not white. */
+.shortcut__icon--inset {
+  background: var(--tile-accent, rgba(255, 255, 255, .92));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
 }
-.shortcut__icon--letter { --tile-accent: #4060f2; }
+.shortcut__icon--letter { background: var(--tile-accent, #4060f2); }
 .shortcut__icon--folder,
 .shortcut__icon--add {
   background: var(--glass-bg);
