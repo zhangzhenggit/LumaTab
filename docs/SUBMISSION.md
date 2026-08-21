@@ -151,7 +151,7 @@ Netlify 都有免费额度，也都支持私有仓库），拿到的 URL 一样�
 
 | | |
 | --- | --- |
-| 首次提交 | 2026-08-21，版本 0.9.0（若取消审核改为提交 0.9.1） |
+| 首次提交 | 2026-08-21，版本 0.9.0；随即取消审核，改以 1.0.0 重新提交 |
 | 扩展 ID | `pceeghjngojnphacfihcjdcodkhdeblg` |
 | 商店地址（过审后生效） | `https://chrome.google.com/webstore/detail/pceeghjngojnphacfihcjdcodkhdeblg` |
 
