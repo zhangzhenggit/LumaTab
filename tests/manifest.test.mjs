@@ -1,8 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, access } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 
 const manifest = JSON.parse(await readFile(new URL("../public/manifest.json", import.meta.url), "utf8"));
+
+// The store rejects a version it has already seen, so a forgotten bump is not a cosmetic slip —
+// it is an upload that fails at the last step, after the review queue has already been joined.
+// The two files are bumped by hand and sit far apart, which is exactly how they drift.
+test("the manifest and package versions are the same, and look like a version", () => {
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(manifest.version, pkg.version, "manifest.json and package.json disagree on the version");
+  // Chrome accepts one to four dot-separated integers, each 0–65535, with no leading zeros.
+  assert.match(manifest.version, /^(0|[1-9]\d*)(\.(0|[1-9]\d*)){0,3}$/);
+});
 
 // The install prompt is the first thing a store visitor sees. Asking for every site up front on a
 // new tab page is the scariest prompt Chrome shows, and it lengthens review; broad access is
