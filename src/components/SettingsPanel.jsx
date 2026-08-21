@@ -311,10 +311,10 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
                 no error, no log the user would ever open — and the only recovery was to uninstall
                 the extension. A number and a button turn that into something visible and fixable. */}
             {icons.total > 0 && (
-              <p className={`icon-status ${icons.missing ? "icon-status--warn" : ""}`}>
-                {icons.missing
-                  ? `${icons.resolved} / ${icons.total} 个网站图标已取到，${icons.missing} 个用的是字母图标`
-                  : `${icons.total} 个网站图标已全部取到`}
+              <p className="icon-status">
+                {icons.resolved > 0 && `${icons.resolved} 个使用网站图标`}
+                {icons.resolved > 0 && icons.missing > 0 && "，"}
+                {icons.missing > 0 && `${icons.missing} 个使用字母图标`}
               </p>
             )}
             <div className="group__actions">

@@ -926,10 +926,11 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    above it for attention. */
 .ghost-button--small { min-height: 30px; gap: 6px; padding: 0 11px; border-radius: 8px; font-size: 12px; }
 
-/* How many tiles actually carry site artwork. Neutral when they all do, amber when some do not —
-   the only on-screen trace of a class of failure that was previously completely silent. */
+/* How many tiles carry site artwork and how many fell back to a letter. Stated plainly and in
+   one voice: a letter tile is a normal outcome for a site that publishes no icon, so colouring
+   the line as a warning would cry wolf on every grid. The numbers are the signal — a row reading
+   "53 个使用字母图标" and nothing else is unmistakable, and that is the case this exists for. */
 .icon-status { margin: 8px 0 0; color: var(--t3); font-size: 12px; line-height: 1.6; }
-.icon-status--warn { color: #a8620a; }
 
 /* The last group is a footnote — the same decision is offered at the top of the new tab, so this
    is only the place to change your mind. Quieter title, tighter box, no border above it. */
