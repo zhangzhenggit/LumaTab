@@ -110,7 +110,7 @@ test("tiles keep Apple's squircle geometry", async () => {
   // makes it a superellipse, and Chromium below 139 drops that line silently — so if either half
   // goes missing the tiles quietly regress to the old look with nothing failing.
   assert.match(css, /--icon-radius:\s*13\.4px/);
-  assert.match(css, /--icon-corner:\s*squircle/);
+  assert.match(css, /--icon-corner:\s*superellipse\(2\.5\)/);
   assert.match(css, /corner-shape:\s*var\(--icon-corner\)/);
 });
 

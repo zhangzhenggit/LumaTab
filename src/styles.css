@@ -15,7 +15,7 @@
   /* Chromium 139+ draws the real superellipse; `squircle` is exactly superellipse(2). Older
      Chrome ignores the declaration entirely and keeps the plain rounded corner, so this is a
      free upgrade rather than something to feature-detect. */
-  --icon-corner: squircle;
+  --icon-corner: superellipse(2.5);
   --icon-gap: 60px;
   --cell-pad-x: 30px;
   --cell-pad-y: 15px;
