@@ -34,7 +34,18 @@
   --glass-line: rgba(255, 255, 255, .4);
   --glass-shadow: 0 2px 12px rgba(0, 0, 0, .15);
   --tile-shadow: drop-shadow(0 4px 12px rgba(0, 0, 0, .05));
-  --label-shadow: 0 0 4px rgba(0, 0, 0, .3);
+  /* Three layers, because one soft glow cannot hold white text over a sunlit photo. Measuring a
+     bright wallpaper showed why dimming is the wrong lever here: its mean luminance was 0.209 —
+     already under the 0.22 target, so auto-dimming correctly did nothing — while the brightest
+     tenth sat at 0.55 and the caption strip at 0.68. Averages are dominated by the dark regions;
+     white text is destroyed by the bright ones. Pulling a photo down far enough to make its
+     highlights safe would ruin the photo, so the captions carry their own contrast instead.
+     A tight near-opaque layer acts as an outline, the wider ones lift the text off busy texture;
+     over a dark wallpaper black-on-black stays invisible, so nothing is lost there. */
+  --label-shadow:
+    0 1px 2px rgba(0, 0, 0, .58),
+    0 0 3px rgba(0, 0, 0, .52),
+    0 0 12px rgba(0, 0, 0, .34);
 
   color: #fff;
   font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", ui-sans-serif,
