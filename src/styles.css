@@ -41,7 +41,13 @@
   --glass-bg: rgba(255, 255, 255, .8);
   --glass-line: rgba(255, 255, 255, .4);
   --glass-shadow: 0 2px 12px rgba(0, 0, 0, .15);
-  --tile-shadow: drop-shadow(0 4px 12px rgba(0, 0, 0, .05));
+  /* Apple's guidance for Big Sur icons is a consistent drop shadow "stronger than it would be in
+     the real world". The previous value here was 5% black — on a photograph that is invisible,
+     and the tiles read as printed onto the wallpaper rather than resting on it. Two layers: a
+     tight one that grounds the tile, a wide one that gives it height. */
+  --tile-shadow:
+    drop-shadow(0 1px 2px rgba(0, 0, 0, .22))
+    drop-shadow(0 6px 14px rgba(0, 0, 0, .20));
   /* Three layers, because one soft glow cannot hold white text over a sunlit photo. Measuring a
      bright wallpaper showed why dimming is the wrong lever here: its mean luminance was 0.209 —
      already under the 0.22 target, so auto-dimming correctly did nothing — while the brightest
@@ -239,18 +245,30 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .shortcut:focus-visible .shortcut__icon { transform: translateY(-4px); }
 .shortcut:focus-visible .shortcut__icon { outline: 2px solid rgba(255, 255, 255, .85); outline-offset: 3px; }
 
-/* Artwork that survives being drawn at tile size simply becomes the tile — the same call WeTab
-   makes, which is why a transparent mark there sits straight on the wallpaper with no card
-   behind it. Only art too small to scale up gets a surface to sit on. */
+/* Artwork that paints its own background out to its edges simply becomes the tile; painting
+   anything behind it would only leave a seam where the two shades disagree. */
 .shortcut__icon--artwork { background: transparent; }
-/* The bed under a bare mark: a light neutral card, which is what Safari puts site icons on and
-   what a generated brand tint could not beat on a real grid. --tile-accent only ever carries the
-   darker neutral, for a pale mark that would otherwise be white on white. */
-.shortcut__icon--inset {
-  background: var(--tile-accent, rgba(250, 250, 252, .94));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+
+/* The two surfaces we draw ourselves. The bed under a bare mark is a light neutral card — what
+   Safari puts site icons on, and what a generated brand tint could not beat on a real grid;
+   --tile-accent carries either the darker neutral (for a pale mark that would otherwise be white
+   on white) or the letter tile's colour.
+
+   The sheen and the two hairlines are what stop these reading as flat rectangles of paint. A real
+   icon is a surface catching light from above: brightest along the top edge, turning under at the
+   bottom. Painted as layers over --tile-accent so every variant gets the same treatment from one
+   rule instead of each colour needing its own. */
+.shortcut__icon--inset,
+.shortcut__icon--letter {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, 0) 58%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 62%, rgba(0, 0, 0, .07)),
+    var(--tile-accent, rgb(248, 248, 251));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .45),
+    inset 0 0 0 1px rgba(0, 0, 0, .07);
 }
-.shortcut__icon--letter { background: var(--tile-accent, #4060f2); }
+.shortcut__icon--letter { --tile-accent: #4060f2; }
 .shortcut__icon--folder,
 .shortcut__icon--add {
   background: var(--glass-bg);
