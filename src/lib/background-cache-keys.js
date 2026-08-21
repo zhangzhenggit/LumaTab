@@ -94,13 +94,20 @@ export function findGradient(key) {
 }
 
 // WeTab exposes blur as a 0–100 slider and divides by five, so its maximum is 20px. Kept as-is.
-export const DEFAULT_BLUR = 0;
+// A touch of blur out of the box: it pushes the photograph a step behind the tiles without
+// costing it its subject, which is most of what the grid needs from a background. 10 on this
+// scale is a 2px standard deviation — `filter: blur()` takes σ, not a Photoshop-style radius, so
+// small numbers here are genuinely subtle.
+export const DEFAULT_BLUR = 10;
 
 // Brightness is bidirectional where WeTab's "mask" only ever darkened: 50 is the untouched
 // photo, below it lays down black and above it lays down white. A darken-only control cannot
 // rescue a dim wallpaper, which is the case that actually needs help. The ceiling is 0.92 rather
 // than 1.0 so the extremes still read as a treated photo instead of a blank rectangle.
-export const DEFAULT_BRIGHTNESS = 45;
+// 60 reads as "+10" on the slider, which labels itself relative to the untouched photo. It sits
+// well below the 68 where captions flip to dark ink, so the default stays in the white-ink world
+// the scrims and label shadow are built for.
+export const DEFAULT_BRIGHTNESS = 60;
 
 function clamp(value, fallback) {
   const number = Number(value);

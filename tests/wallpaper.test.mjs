@@ -19,9 +19,11 @@ test("a gradient suppresses the photo selection", () => {
 test("brightness scales the picture instead of veiling it", () => {
   // A translucent overlay flattens contrast and mutes colour, which is why the veil version of
   // this control felt useless in both directions. These must stay CSS filters.
-  const dark = wallpaperFilterStyle({ brightness: 0 });
-  const neutral = wallpaperFilterStyle({ brightness: 50 });
-  const bright = wallpaperFilterStyle({ brightness: 100 });
+  // Blur is pinned off rather than left to its default: this test is about the brightness term,
+  // and letting a non-zero default leak into the filter string made it fail for the wrong reason.
+  const dark = wallpaperFilterStyle({ brightness: 0, blur: 0 });
+  const neutral = wallpaperFilterStyle({ brightness: 50, blur: 0 });
+  const bright = wallpaperFilterStyle({ brightness: 100, blur: 0 });
   assert.equal(neutral.filter, "brightness(1.000)");
   assert.equal(Number(dark.filter.match(/brightness\(([\d.]+)\)/)[1]) < 0.5, true);
   assert.equal(Number(bright.filter.match(/brightness\(([\d.]+)\)/)[1]) > 1.5, true);

@@ -20,6 +20,9 @@
   --cell-pad-x: 30px;
   --cell-pad-y: 15px;
   --cell-size: calc(var(--icon-size) + var(--icon-gap));
+  /* Breathing room between rows. The cell is square, so vertical spacing was whatever the caption
+     did not use — much tighter than the 60px between columns. */
+  --row-gap: 20px;
   --page-inset: 20px;
   --label-size: 14px;
   --label-gap: 8px;
@@ -46,8 +49,8 @@
      and the tiles read as printed onto the wallpaper rather than resting on it. Two layers: a
      tight one that grounds the tile, a wide one that gives it height. */
   --tile-shadow:
-    drop-shadow(0 1px 2px rgba(0, 0, 0, .22))
-    drop-shadow(0 6px 14px rgba(0, 0, 0, .20));
+    drop-shadow(0 1px 2px rgba(0, 0, 0, .28))
+    drop-shadow(0 8px 18px rgba(0, 0, 0, .26));
   /* Three layers, because one soft glow cannot hold white text over a sunlit photo. Measuring a
      bright wallpaper showed why dimming is the wrong lever here: its mean luminance was 0.209 —
      already under the 0.22 target, so auto-dimming correctly did nothing — while the brightest
@@ -200,6 +203,11 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   display: grid;
   grid-template-columns: repeat(auto-fill, var(--cell-size));
   grid-auto-rows: var(--cell-size);
+  /* Rows only. The cell already carries 30px of horizontal padding, so columns are spaced; what
+     it does not carry is anything below the caption, which left consecutive rows reading as one
+     dense block. Adding it here rather than growing --cell-size keeps the tile's own geometry —
+     and every measurement taken against it — exactly as it was. */
+  row-gap: var(--row-gap);
   justify-content: center;
   align-content: start;
   width: 100%;
@@ -566,6 +574,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   display: grid;
   grid-template-columns: repeat(var(--folder-columns, 5), var(--cell-size));
   grid-auto-rows: var(--cell-size);
+  /* Same row spacing as the grid it was opened from — a folder reads as a slice of that grid, so
+     rows that sit tighter inside it would give the panel away as a different surface. */
+  row-gap: var(--row-gap);
   justify-content: center;
 }
 .folder-panel__item {
