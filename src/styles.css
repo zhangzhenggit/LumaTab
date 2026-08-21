@@ -22,7 +22,7 @@
   --cell-size: calc(var(--icon-size) + var(--icon-gap));
   /* Breathing room between rows. The cell is square, so vertical spacing was whatever the caption
      did not use — much tighter than the 60px between columns. */
-  --row-gap: 20px;
+  --row-gap: 34px;
   --page-inset: 20px;
   --label-size: 14px;
   --label-gap: 8px;

@@ -96,14 +96,37 @@ export function useShortcuts(notify) {
   // First paint shows whatever is already cached; the worker keeps resolving afterwards, so
   // adopt its results as soon as it reports completion rather than making the user open a new
   // tab to see sharp icons.
+  //
+  // The broadcast is the fast path, deliberately not the only one. It can be missed in several
+  // ordinary ways — the worker can finish before this listener is registered, MV3 can recycle the
+  // worker mid-batch, a message can land while the page is still loading — and when it was missed
+  // the page never looked at the cache again. The icons were sitting there the whole time; the
+  // grid just kept showing letters until something else happened to make the user reload.
+  //
+  // So the page also re-reads the cache a few times on its own, backing off as it goes, and again
+  // whenever the tab becomes visible. Re-reading is cheap and issues no network work of its own,
+  // which is what makes polling an acceptable safety net here rather than a smell.
   useEffect(() => {
     let disposed = false;
-    const unsubscribe = subscribeToIconUpdates((diagnostics) => {
-      void applyCachedSiteIcons(shortcutsRef.current, { force: Boolean(diagnostics?.refresh) }).then((next) => {
+    const adopt = (options) => {
+      void applyCachedSiteIcons(shortcutsRef.current, options).then((next) => {
         if (!disposed && next !== shortcutsRef.current) setShortcuts(next);
       });
+    };
+
+    const unsubscribe = subscribeToIconUpdates((diagnostics) => {
+      adopt({ force: Boolean(diagnostics?.refresh) });
     });
-    return () => { disposed = true; unsubscribe(); };
+    const timers = [800, 2500, 6000, 14000].map((delay) => setTimeout(() => adopt(), delay));
+    const onVisible = () => { if (document.visibilityState === "visible") adopt(); };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+      timers.forEach(clearTimeout);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {
