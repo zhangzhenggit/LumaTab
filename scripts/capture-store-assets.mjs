@@ -219,12 +219,18 @@ async function main() {
       await shot("04-gradient");
     }
 
-    // 440x280 promotional tile, rendered from the same design tokens as the product.
     // Promotional tiles. Both must be 24-bit PNG with no alpha channel — the store rejects RGBA
     // here — which is what captureScreenshot produces when the page paints an opaque background.
+    //
+    // They are built from the two real files: the home capture taken moments ago, and the icon
+    // out of the build. The version this replaced drew its own mark in CSS — an orange rounded
+    // square with a white bar — which bore no resemblance to the actual blue-violet icon. A store
+    // listing whose promo art and icon are different colours is the definition of off-brand.
+    const homeShot = (await readFile(resolve(OUT, "01-home.png"))).toString("base64");
+    const markIcon = (await readFile(resolve(BUILD, "assets/icons/icon-128.png"))).toString("base64");
     for (const [name, width, height, html] of [
-      ["promo-440x280", 440, 280, promoTileHtml(440, 280)],
-      ["promo-1400x560", 1400, 560, promoTileHtml(1400, 560)],
+      ["promo-440x280", 440, 280, promoTileHtml(440, 280, homeShot, markIcon)],
+      ["promo-1400x560", 1400, 560, promoTileHtml(1400, 560, homeShot, markIcon)],
     ]) {
       await page.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
       await page.send("Page.navigate", { url: "data:text/html;charset=utf-8," + encodeURIComponent(html) });
@@ -262,20 +268,35 @@ async function main() {
 
 // One layout at two sizes: everything scales off the canvas height so the 1400x560 marquee is the
 // same design as the 440x280 tile rather than a second thing to keep in sync.
-function promoTileHtml(width, height) {
+//
+// Words on a dark ground at the left, the product itself as a window tilted in from the right.
+// The text sits on its own stacking layer because the window's drop shadow otherwise spills
+// across it and greys it out.
+function promoTileHtml(width, height, homeShot, markIcon) {
   const s = height / 280;
   return `<!doctype html><meta charset="utf-8"><style>
   html,body{margin:0;width:${width}px;height:${height}px;overflow:hidden}
-  body{display:grid;place-items:center;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
-    background:linear-gradient(150deg,#1b2a6b 0%,#2f3f8f 55%,#4a4fb0 100%)}
-  .wrap{text-align:center;color:#fff}
-  .mark{width:${78 * s}px;height:${78 * s}px;margin:0 auto ${16 * s}px;border-radius:${22 * s}px;
-    background:linear-gradient(160deg,#ffd27a,#ff9d4d);position:relative;overflow:hidden;
-    box-shadow:0 ${10 * s}px ${28 * s}px rgba(0,0,0,.32)}
-  .mark::after{content:"";position:absolute;left:0;right:0;bottom:${26 * s}px;height:${3 * s}px;background:rgba(255,255,255,.92)}
-  h1{margin:0;font-size:${30 * s}px;font-weight:600;letter-spacing:.02em}
-  p{margin:${8 * s}px 0 0;font-size:${14 * s}px;color:rgba(255,255,255,.78)}
-  </style><div class="wrap"><div class="mark"></div><h1>LumaTab · 浮光新页</h1><p>干净的新标签页 · 无广告 · 无账号 · 不收集数据</p></div>`;
+  /* Single quotes on purpose: this string is interpolated into an HTML document whose attributes
+     use double quotes, and a family name in double quotes closes them early. That bug silently
+     dropped the background gradient and every font choice on the whole tile. */
+  body{position:relative;font-family:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    background:linear-gradient(135deg,#10152b 0%,#1b2140 48%,#262a52 100%)}
+  /* Width and offset are tuned against the tagline, which is the widest line and sets how far
+     right the window has to sit. At 440 the two were overlapping by about 20px. */
+  .shot{position:absolute;right:${-58 * s}px;top:50%;transform:translateY(-50%) rotate(-4deg);
+    width:50%;border-radius:${9 * s}px;box-shadow:0 ${14 * s}px ${36 * s}px rgba(0,0,0,.5)}
+  .wrap{position:absolute;z-index:2;left:${30 * s}px;top:50%;transform:translateY(-50%);color:#fff;
+    text-shadow:0 ${1 * s}px ${6 * s}px rgba(0,0,0,.6)}
+  .mark{display:block;width:${48 * s}px;height:${48 * s}px;border-radius:${11 * s}px;margin-bottom:${14 * s}px}
+  h1{margin:0;font-size:${21 * s}px;font-weight:600;line-height:1.2;white-space:nowrap}
+  p{margin:${9 * s}px 0 0;font-size:${11 * s}px;color:rgba(255,255,255,.76);white-space:nowrap}
+  </style>
+  <img class="shot" src="data:image/png;base64,${homeShot}">
+  <div class="wrap">
+    <img class="mark" src="data:image/png;base64,${markIcon}">
+    <h1>LumaTab · 浮光新页</h1>
+    <p>干净的新标签页 · 无广告 · 无账号 · 不收集数据</p>
+  </div>`;
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
