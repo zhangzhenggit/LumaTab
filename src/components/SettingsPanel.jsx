@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowCounterClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@phosphor-icons/react";
 import { wallpaperThumbnail } from "../lib/background";
 import { GRADIENTS, gradientCss } from "../lib/background-cache-keys";
 import { validateShortcutPayload } from "../hooks/useShortcuts";
@@ -122,7 +122,7 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
   // while one is active.
   const usingGradient = Boolean(library?.gradientKey);
   const auto = !usingGradient && library?.mode !== "pinned";
-  const { tuning } = wallpaperApi;
+  const { tuning, resetTuning } = wallpaperApi;
 
   // A dropped reply must not blank the panel: keep whatever the library already held rather
   // than clearing the thumbnails and every selection state along with it.
@@ -244,8 +244,17 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
           </section>
 
           <section className="group">
-            <div className="group__head"><h3 className="group__title">显示效果</h3></div>
-            <p className="group__hint">调整背景的明暗与模糊程度，图标与文字不受影响。</p>
+            <div className="group__head">
+              <h3 className="group__title">显示效果</h3>
+              {/* Never disabled, even when both sliders already read the defaults: reset also
+                  hands brightness back to automatic tone matching, which the panel cannot see and
+                  which is off for good once the slider has been dragged. A button greyed out at
+                  the default numbers would be unable to restore the one thing worth restoring. */}
+              <button className="ghost-button ghost-button--small" type="button" onClick={resetTuning}>
+                <ArrowCounterClockwise size={13} weight="bold" />重置
+              </button>
+            </div>
+            <p className="group__hint">调整背景的明暗与模糊程度，图标与文字不受影响。重置后亮度重新交给自动匹配。</p>
             <Slider
               id="wp-brightness"
               label="亮度"

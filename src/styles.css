@@ -46,11 +46,16 @@
   --glass-shadow: 0 2px 12px rgba(0, 0, 0, .15);
   /* Apple's guidance for Big Sur icons is a consistent drop shadow "stronger than it would be in
      the real world". The previous value here was 5% black — on a photograph that is invisible,
-     and the tiles read as printed onto the wallpaper rather than resting on it. Two layers: a
-     tight one that grounds the tile, a wide one that gives it height. */
+     and the tiles read as printed onto the wallpaper rather than resting on it.
+
+     Three layers, because two only ever produced height. A tile with nothing but a wide soft cast
+     reads as hovering, with no answer to where it touches; the 1px contact shadow is that answer,
+     and it is how macOS icons are built — one shadow tight enough to be a seam, one loose enough
+     to be distance, and a mid layer so the step between them is not visible. */
   --tile-shadow:
-    drop-shadow(0 1px 2px rgba(0, 0, 0, .28))
-    drop-shadow(0 8px 18px rgba(0, 0, 0, .26));
+    drop-shadow(0 1px 1px rgba(0, 0, 0, .34))
+    drop-shadow(0 1px 3px rgba(0, 0, 0, .26))
+    drop-shadow(0 10px 22px rgba(0, 0, 0, .30));
   /* Three layers, because one soft glow cannot hold white text over a sunlit photo. Measuring a
      bright wallpaper showed why dimming is the wrong lever here: its mean luminance was 0.209 —
      already under the 0.22 target, so auto-dimming correctly did nothing — while the brightest

@@ -4,6 +4,7 @@ import {
   backgroundCacheRequest,
   brightnessFrom,
   DEFAULT_BLUR,
+  DEFAULT_BRIGHTNESS,
   imageKey,
   selectedImage,
   WALLPAPER_MODE_AUTO,
@@ -112,8 +113,18 @@ async function cacheWholeArchive(state) {
   }
 }
 
-async function selectWallpaper({ mode, key, gradientKey, brightness, blur, auto = false }) {
+async function selectWallpaper({ mode, key, gradientKey, brightness, blur, auto = false, reset = false }) {
   const state = (await getStoredState()) ?? {};
+
+  // Reset means "as installed", and as installed brightness is chosen by the tone matcher rather
+  // than by a stored number. So this is the one path that turns brightnessAuto back on: `auto`
+  // below only ever preserves the stored flag, never sets it, so nothing else can undo the switch
+  // that flipped when the user first dragged the slider.
+  if (reset) {
+    const next = { ...state, brightness: DEFAULT_BRIGHTNESS, blur: DEFAULT_BLUR, brightnessAuto: true };
+    await storeState(next);
+    return wallpaperLibrary(next);
+  }
 
   // Mask/blur are independent of which wallpaper is showing, so they are applied on their own
   // and leave the current selection untouched.

@@ -2,10 +2,11 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import {
   brightnessFrom,
   DEFAULT_BLUR,
+  DEFAULT_BRIGHTNESS,
   findGradient,
   gradientCss,
 } from "../lib/background-cache-keys";
-import { autoBrightnessFor, measureWallpaperLuminance } from "../lib/wallpaper-tone";
+import { autoBrightnessFor, measureWallpaperTone } from "../lib/wallpaper-tone";
 import {
   chooseGradient,
   chooseWallpaper,
@@ -13,6 +14,7 @@ import {
   followLatestWallpaper,
   loadBingBackground,
   loadWallpaperLibrary,
+  resetWallpaperTuning,
   storeAutoBrightness,
   tuneWallpaper,
 } from "../lib/background";
@@ -66,11 +68,14 @@ export function useBingWallpaper(notify, initialWallpaper = null) {
     if (!result?.url || result.gradient) return;
     if (tonedRef.current === result.url) return;
     tonedRef.current = result.url;
-    const luminance = await measureWallpaperLuminance(result.url);
-    if (luminance === null) return;
-    setPhotoLuminance(luminance);
+    const tone = await measureWallpaperTone(result.url);
+    if (tone === null) return;
+    // The ink decision gets the caption band; auto-brightness gets the whole frame. Handing the
+    // mean to both is what left white captions on wallpapers that were bright exactly where the
+    // captions sit — see the comment at the top of wallpaper-tone.js.
+    setPhotoLuminance(tone.captionBand);
     if (!autoToneRef.current) return;
-    const brightness = autoBrightnessFor(luminance);
+    const brightness = autoBrightnessFor(tone.mean);
     setTuning((current) => {
       if (current.brightness === brightness) return current;
       pendingTuning.current = { ...current, brightness };
@@ -147,10 +152,29 @@ export function useBingWallpaper(notify, initialWallpaper = null) {
     if (pendingTuning.current) void tuneWallpaper(pendingTuning.current);
   }, []);
 
+  // Back to how it ships. Restoring the two numbers is the easy half; the half that matters is
+  // handing brightness back to the tone matcher, because that is the state a fresh install is in
+  // and it is switched off for good the moment the slider moves. The measured value the matcher
+  // then produces will usually differ from DEFAULT_BRIGHTNESS, which is correct — the default is
+  // only where it starts from before it has looked at the photo.
+  const resetTuning = useCallback(() => {
+    autoToneRef.current = true;
+    pendingTuning.current = null;
+    setTuning({ brightness: DEFAULT_BRIGHTNESS, blur: DEFAULT_BLUR });
+    void resetWallpaperTuning();
+    // matchTone refuses to measure a photo twice, so the guard has to be cleared before asking
+    // it to look again at the picture already on screen.
+    const measured = tonedRef.current;
+    if (measured) {
+      tonedRef.current = null;
+      void matchTone({ url: measured });
+    }
+  }, [matchTone]);
+
   // Stable across renders so consumers can safely put it in a dependency array; rebuilding it
   // every render made SettingsPanel's effect re-run forever, refetching the library each time.
   return useMemo(() => ({
     wallpaper, backgroundMeta, tuning, photoLuminance,
-    loadWallpaperLibrary, pinWallpaper, followLatest, pickGradient, adjust, commitTuning,
-  }), [wallpaper, backgroundMeta, tuning, photoLuminance, pinWallpaper, followLatest, pickGradient, adjust, commitTuning]);
+    loadWallpaperLibrary, pinWallpaper, followLatest, pickGradient, adjust, commitTuning, resetTuning,
+  }), [wallpaper, backgroundMeta, tuning, photoLuminance, pinWallpaper, followLatest, pickGradient, adjust, commitTuning, resetTuning]);
 }

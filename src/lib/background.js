@@ -104,6 +104,13 @@ export function storeAutoBrightness(brightness) {
   return send({ type: "LUMATAB_SET_WALLPAPER", brightness, auto: true });
 }
 
+// Puts brightness and blur back to their shipped values and hands brightness back to the tone
+// matcher. It needs its own flag: `auto: true` preserves the stored brightnessAuto rather than
+// setting it, so once the slider had been touched nothing could switch automatic mode back on.
+export function resetWallpaperTuning() {
+  return send({ type: "LUMATAB_SET_WALLPAPER", reset: true });
+}
+
 // Turns a cache URL from the library into something an <img> can display.
 export async function wallpaperThumbnail(cacheUrl) {
   try {

@@ -128,3 +128,31 @@ test("switching to auto keeps the current picture and only follows Bing from the
   assert.equal(back?.activeKey, "20260814", "auto mode yanked the wallpaper the user had chosen");
   assert.equal(back?.mode, "auto");
 });
+
+// `auto: true` on a plain tuning message only *preserves* the stored brightnessAuto flag — it
+// never sets it. That is correct for storeAutoBrightness (the page reporting a value it derived
+// on its own must not look like a user decision), but it means nothing on that path could ever
+// turn automatic tone matching back on once a manual slider drag had switched it off. Reset needs
+// its own flag for exactly that reason, and this pins the case that would otherwise regress: a
+// user with a hand-set brightness clicking reset, expecting to actually get automatic mode back.
+test("reset turns automatic tone matching back on even after a manual brightness was set", async () => {
+  chromeStub.store[BACKGROUND_META_KEY] = {
+    images: [{ startDate: "20260818", urlbase: "/a", imageUrl: "https://www.bing.com/th?id=a" }],
+    selectedIndex: 0,
+    fetchedAt: Date.now(),
+  };
+
+  const manual = await chromeStub.send({ type: "LUMATAB_SET_WALLPAPER", brightness: 82 });
+  assert.equal(manual?.brightnessAuto, false, "a manual brightness must end auto mode");
+
+  // The bug this guards against: reporting a value as if the page had derived it does not revive
+  // auto mode, because `auto: true` here only preserves whatever brightnessAuto already was.
+  const stillOff = await chromeStub.send({ type: "LUMATAB_SET_WALLPAPER", brightness: 55, auto: true });
+  assert.equal(stillOff?.brightnessAuto, false, "auto:true on a tuning message must not resurrect auto mode");
+
+  const reset = await chromeStub.send({ type: "LUMATAB_SET_WALLPAPER", reset: true });
+  assert.equal(reset?.brightness, 60, "reset must restore the default brightness");
+  assert.equal(reset?.blur, 10, "reset must restore the default blur");
+  assert.equal(reset?.brightnessAuto, true, "reset is the one path that must turn auto mode back on");
+  assert.equal(chromeStub.store[BACKGROUND_META_KEY].brightnessAuto, true, "the reset must be persisted");
+});
