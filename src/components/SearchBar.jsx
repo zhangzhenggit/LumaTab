@@ -7,7 +7,13 @@ import { ArrowRight } from "@phosphor-icons/react";
 // engine's mark. That distinction is the whole point — a palette is not a trademark, a lookalike
 // logo is. Nothing about this icon claims an affiliation, and nothing about it claims to know
 // which engine the box will reach, because it does not (see runSearch).
-const RING = { cx: 10.5, cy: 10.5, r: 6.5, width: 2.7, gap: 8 };
+// These three numbers decide whether the mark reads as a circle at all, and they trade against
+// each other. What the eye judges is each arc's sagitta — how far it bulges from its own chord —
+// measured against the stroke drawing it. The first cut (r 6.5, width 2.7, gap 8°) put that ratio
+// at 0.48: the bulge was under half the line weight, so four arcs read as four straight bars and
+// the whole thing looked like a rounded square. Bigger radius, thinner stroke and a smaller gap
+// take it to 0.79. Change one, recheck the ratio.
+const RING = { cx: 10.5, cy: 10.5, r: 7.4, width: 2.2, gap: 5 };
 
 // Gaps trimmed off both ends of every arc, so the four pieces read as four pieces. Without them
 // the ring is one stroke that merely changes colour, and at 22px the hues smear together.
@@ -28,6 +34,12 @@ const SEGMENTS = [
   [225, 315, "#EA4335"],
 ];
 const HANDLE_COLOUR = SEGMENTS[0][2];
+// Derived rather than written out, so the handle keeps meeting the ring when RING changes: it
+// starts just clear of the outer edge at 45° and runs out along the same diagonal.
+const HANDLE_FROM = RING.r * Math.SQRT1_2 + RING.width * 0.55;
+const HANDLE_TO = HANDLE_FROM + 4.6;
+const handlePath = `M${(RING.cx + HANDLE_FROM).toFixed(2)} ${(RING.cy + HANDLE_FROM).toFixed(2)}`
+  + ` ${(RING.cx + HANDLE_TO).toFixed(2)} ${(RING.cy + HANDLE_TO).toFixed(2)}`;
 
 function SearchGlass() {
   return (
@@ -35,7 +47,7 @@ function SearchGlass() {
       {SEGMENTS.map(([from, to, colour]) => (
         <path key={colour} d={arcPath(from, to)} stroke={colour} strokeWidth={RING.width} strokeLinecap="round" />
       ))}
-      <path d="M15.8 15.8 20.4 20.4" stroke={HANDLE_COLOUR} strokeWidth={RING.width} strokeLinecap="round" />
+      <path d={handlePath} stroke={HANDLE_COLOUR} strokeWidth={RING.width} strokeLinecap="round" />
     </svg>
   );
 }

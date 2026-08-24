@@ -153,14 +153,24 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   padding: 0 16px;
   border: 1px solid var(--glass-line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, .6);
+  /* --glass-bg, not a private .6: this bar used to be the one glass surface in the app that set
+     its own opacity, 20% thinner than every menu and dialog, and it looked muddy for exactly that
+     reason. */
+  background: var(--glass-bg);
   box-shadow: 0 4px 16px -4px rgba(0, 0, 0, .05);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  /* saturate() is the term that matters here. The wallpaper already carries its own blur, so
+     blurring the backdrop again has almost no texture left to average — what comes through is the
+     photo's mean colour, and the bar took on a different cast with every picture. Draining that
+     chroma is what makes the surface read as one material instead of as tinted haze; brightness
+     lifts it back out of the shadow the drained colour leaves behind. */
+  backdrop-filter: var(--glass-blur) saturate(.4) brightness(1.08);
+  -webkit-backdrop-filter: var(--glass-blur) saturate(.4) brightness(1.08);
   transition: background 160ms ease, box-shadow 160ms ease;
 }
+/* Must stay above the resting value. It was .72 against a .6 rest; raising rest to .8 without
+   this would have made focusing the field turn it *more* transparent. */
 .search:focus-within {
-  background: rgba(255, 255, 255, .72);
+  background: rgba(255, 255, 255, .88);
   box-shadow: 0 8px 24px -6px rgba(0, 0, 0, .12);
 }
 
