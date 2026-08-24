@@ -152,10 +152,38 @@ Netlify 都有免费额度，也都支持私有仓库），拿到的 URL 一样�
 | | |
 | --- | --- |
 | 首次提交 | 2026-08-21，版本 0.9.0；随即取消审核，改以 1.0.0 重新提交 |
+| 1.0.0 被拒 | 2026-08-23，违规参考 ID **Red Argon**（扩展程序质量指南）。见下节 |
+| 修正后重交 | 版本 1.0.1 |
 | 扩展 ID | `pceeghjngojnphacfihcjdcodkhdeblg` |
 | 商店地址（过审后生效） | `https://chrome.google.com/webstore/detail/pceeghjngojnphacfihcjdcodkhdeblg` |
 
 扩展 ID 一旦分配就不再变化，后续所有版本更新都用同一个项目、同一个 ID。
+
+### Red Argon：1.0.0 被拒的原因与修正
+
+后台原文：「对浏览器的新标签页和用户的搜索体验进行更改」，并给出纠正办法——
+**如果新标签页包含搜索体验，则必须使用 Chrome Search API 来尊重用户所选的设置。**
+
+问题不在于我们改了默认搜索引擎（`manifest.json` 里从来没有 `chrome_settings_overrides`），
+而在于搜索框自己拼了一个固定引擎的查询地址。对审核而言这两件事是一回事：**覆盖新标签页
+的扩展一旦自带搜索，就等于替用户选了引擎。** 页面上再小的搜索框也算。
+
+三处一起改，缺一处都还可能被同一条打回：
+
+| 改前 | 改后 |
+| --- | --- |
+| `SearchBar.jsx` 拼固定引擎的 `?q=` 地址 | `chrome.search.query({ text, disposition: "CURRENT_TAB" })`，并在 `permissions` 中加 `search` |
+| 搜索框左侧画着某引擎的 logo | 换成中性放大镜；`public/assets/sites/` 整个删除 |
+| manifest 描述写着「Google 搜索」 | 描述里不再出现任何引擎名 |
+
+`tests/manifest.test.mjs` 里加了一条回归测试：在源码中搜索引擎域名 + 查询路径的组合，
+命中即失败。**注释里也不能出现**——第一次改完就是被自己的注释绊住的，而审核同样是 grep。
+
+真实验证过一次：无头 Chrome 加载构建产物，在搜索框输入文字回车，落地地址是
+`https://www.google.com/search?q=…&sourceid=chrome&ie=UTF-8`。`sourceid=chrome` 是浏览器
+自己拼的签名——说明地址由 Chrome 生成，不是我们生成的。把默认引擎换成百度就会走百度。
+
+被拒后不能改这份草稿再交，**要提交一份新草稿**，所以版本号必须往上走（1.0.0 → 1.0.1）。
 
 ## 五、审核期间
 

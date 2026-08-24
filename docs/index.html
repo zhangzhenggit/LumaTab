@@ -47,6 +47,7 @@
 <p>LumaTab 只发起两类网络请求，都不携带任何身份标识：</p>
 <ol><li><strong><code>https://www.bing.com</code></strong> —— 获取每日壁纸的图片列表与图片文件。这是安装时唯一申请的站点权限。</li><li><strong>你自己添加的网站</strong>（需要你另行授权，见下节）—— 读取该网站公开声明的图标（<code>/favicon.ico</code>、页面中的 <code>&lt;link rel="icon"&gt;</code>、<code>apple-touch-icon</code>、Web App Manifest 中声明的图标）。</li></ol>
 <p>这些请求由扩展的后台 Service Worker 发出，<strong>只读取图标资源，不修改网页内容，不注入任何脚本</strong>，也不会把请求内容发送到第三方。</p>
+<p>搜索框不算在内：它不由扩展发起请求，而是交给 Chrome 按你选定的默认搜索引擎跳转，详见下文「关于 <code>search</code> 权限」。</p>
 <p>需要特别说明的是：扩展<strong>不会把你添加的任何网址发送给我们或任何第三方</strong>。图标是从你的电脑直接向该网站请求的——正因为如此，才需要下面这项权限。</p>
 <h2>关于 <code>http://*/*</code> 与 <code>https://*/*</code> 权限（可选，默认不授予）</h2>
 <p>这项权限是<strong>可选权限</strong>，安装时不申请，默认处于未授予状态。未授予时扩展完全可用，只是图标改用 Chrome 本地已有的记录（通常只有 16/32px）。</p>
@@ -55,6 +56,11 @@
 <p>图标请求沿用 Chrome 当前的系统代理与网络设置，扩展不另设代理、不改变路由。</p>
 <h2>关于 <code>favicon</code> 权限</h2>
 <p>这是安装时申请的必需权限，用于读取 <strong>Chrome 本地已有的图标缓存</strong>。在未授予上述站点权限时，它是图标的唯一来源；在已授予时，它是网站图标取不到（例如需要登录、或位于内网）时的兜底。这是纯本地读取，不产生网络请求。</p>
+<h2>关于 <code>search</code> 权限</h2>
+<p>新标签页上的搜索框<strong>不自带搜索引擎</strong>。你按下回车后，扩展调用 Chrome 官方的<code>chrome.search.query()</code>，由<strong>浏览器</strong>把这段文字交给<strong>你自己在 Chrome 设置里选定的默认搜索引擎</strong>——你换成 Bing、百度或任何其他引擎，这个框就跟着换。</p>
+<p>因此：</p>
+<ul><li>扩展不会、也无法读取搜索结果页的内容</li><li>搜索词不会经过我们，我们没有服务器，也不做任何记录</li><li>扩展不修改你的默认搜索引擎设置，<code>manifest.json</code> 中没有 <code>chrome_settings_overrides</code></li></ul>
+<p>如果你输入的是一个网址（例如 <code>example.com</code>），页面会直接跳转过去，不经过任何搜索引擎。</p>
 <h2>我们不做的事</h2>
 <ul><li>不收集浏览历史、书签、Cookie、密码或任何表单内容</li><li>不使用分析、埋点、崩溃上报或广告 SDK</li><li>不建立用户账号，不生成设备标识</li><li>不向任何第三方出售、出租或共享数据</li><li>不在你访问的网页中注入或执行任何代码</li></ul>
 <h2>儿童隐私</h2>

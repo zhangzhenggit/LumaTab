@@ -2,7 +2,7 @@
 
 ## 产品目标
 
-用一个快速、安静、可整理的页面替换 Chrome 新标签页：Bing 每日图提供每天变化的氛围，Google 搜索承担主要入口，快捷链接同时支持独立展示与文件夹收纳。
+用一个快速、安静、可整理的页面替换 Chrome 新标签页：Bing 每日图提供每天变化的氛围，搜索框承担主要入口（交由用户自己的默认搜索引擎），快捷链接同时支持独立展示与文件夹收纳。
 
 ## 已锁定设计
 
@@ -17,7 +17,7 @@
 
 ```text
 Chrome New Tab (React)
-├─ SearchBar                 URL 识别 / Google 搜索
+├─ SearchBar                 URL 识别 / chrome.search 交给默认引擎
 ├─ ShortcutGrid             平铺、排序、悬停合并编排
 │  ├─ ShortcutTile          独立链接
 │  ├─ FolderTile            2×2 预览

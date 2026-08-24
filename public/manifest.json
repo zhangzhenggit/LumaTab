@@ -2,12 +2,13 @@
   "manifest_version": 3,
   "name": "LumaTab · 浮光新页",
   "short_name": "LumaTab",
-  "version": "1.0.0",
-  "description": "以 Bing 每日图、Google 搜索和可拖放快捷分组组成的轻量新标签页。",
+  "version": "1.0.1",
+  "description": "一个干净的新标签页：每日壁纸、可拖放的快捷方式与分组。无广告，无账号，不收集数据。",
   "minimum_chrome_version": "109",
   "permissions": [
     "storage",
-    "favicon"
+    "favicon",
+    "search"
   ],
   "host_permissions": [
     "https://www.bing.com/*"

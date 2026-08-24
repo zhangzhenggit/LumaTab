@@ -21,7 +21,30 @@ test("the manifest and package versions are the same, and look like a version", 
 test("only bing.com is required at install; site access stays optional", () => {
   assert.deepEqual(manifest.host_permissions, ["https://www.bing.com/*"]);
   assert.deepEqual(manifest.optional_host_permissions, ["http://*/*", "https://*/*"]);
-  assert.deepEqual(manifest.permissions, ["storage", "favicon"]);
+  assert.deepEqual(manifest.permissions, ["storage", "favicon", "search"]);
+});
+
+// Chrome Web Store violation "Red Argon", which rejected 1.0.0: an extension that overrides the
+// new tab page and ships its own search must route that search through chrome.search, so the
+// user's chosen engine is the one that answers. Naming any engine in the code is the violation
+// itself, so this greps for one rather than trusting the search box to stay honest.
+test("the search box defers to the user's engine instead of naming one", async () => {
+  assert.ok(manifest.permissions.includes("search"), "chrome.search needs the search permission");
+  const bar = await readFile(new URL("../src/components/SearchBar.jsx", import.meta.url), "utf8");
+  assert.match(bar, /chrome\.search\.query/, "the search box must go through chrome.search.query");
+
+  // The wallpaper's bing.com is the one third-party host we are allowed to reach, and it is a
+  // picture feed, not a query endpoint. Anything else that looks like a search URL is a relapse.
+  const engine = /https?:\/\/[\w.-]*(google|bing|baidu|duckduckgo|yandex|yahoo|ecosia)[\w.-]*\/[^"'`\s]*(search|\?q=|\/s\?)/i;
+  for (const file of ["../src/components/SearchBar.jsx", "../src/App.jsx", "../src/lib/background.js"]) {
+    const source = await readFile(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(source, engine, `${file} hardcodes a search engine`);
+  }
+
+  // The old bar drew Google's logo, which implied an affiliation we do not have.
+  await assert.rejects(access(new URL("../public/assets/sites", import.meta.url)),
+    "the bundled engine logo must stay deleted");
+  assert.doesNotMatch(manifest.description, /google|谷歌/i, "the description must not advertise an engine");
 });
 
 // Chrome matches permissions.request() against optional_host_permissions literally. A mismatch
