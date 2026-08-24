@@ -1,4 +1,44 @@
-import { ArrowRight, MagnifyingGlass } from "@phosphor-icons/react";
+import { ArrowRight } from "@phosphor-icons/react";
+
+// The mark is drawn here rather than taken from the icon set because each quarter of the ring
+// carries its own colour, which no icon-set glyph can express.
+//
+// Four hues, but a plain magnifying glass: the shape is the generic search affordance, not any
+// engine's mark. That distinction is the whole point — a palette is not a trademark, a lookalike
+// logo is. Nothing about this icon claims an affiliation, and nothing about it claims to know
+// which engine the box will reach, because it does not (see runSearch).
+const RING = { cx: 10.5, cy: 10.5, r: 6.5, width: 2.7, gap: 8 };
+
+// Gaps trimmed off both ends of every arc, so the four pieces read as four pieces. Without them
+// the ring is one stroke that merely changes colour, and at 22px the hues smear together.
+function arcPath(from, to) {
+  const point = (degrees) => {
+    const radians = (degrees * Math.PI) / 180;
+    return `${(RING.cx + RING.r * Math.cos(radians)).toFixed(3)} ${(RING.cy + RING.r * Math.sin(radians)).toFixed(3)}`;
+  };
+  return `M ${point(from + RING.gap)} A ${RING.r} ${RING.r} 0 0 1 ${point(to - RING.gap)}`;
+}
+
+// Ordered clockwise from the right. The handle leaves the ring at 45°, where the first arc ends,
+// so it takes that arc's colour and the stroke reads as one continuous line.
+const SEGMENTS = [
+  [-45, 45, "#4285F4"],
+  [45, 135, "#34A853"],
+  [135, 225, "#FBBC05"],
+  [225, 315, "#EA4335"],
+];
+const HANDLE_COLOUR = SEGMENTS[0][2];
+
+function SearchGlass() {
+  return (
+    <svg className="search__glass" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
+      {SEGMENTS.map(([from, to, colour]) => (
+        <path key={colour} d={arcPath(from, to)} stroke={colour} strokeWidth={RING.width} strokeLinecap="round" />
+      ))}
+      <path d="M15.8 15.8 20.4 20.4" stroke={HANDLE_COLOUR} strokeWidth={RING.width} strokeLinecap="round" />
+    </svg>
+  );
+}
 
 // This box must not decide which search engine the user gets.
 //
@@ -46,9 +86,9 @@ export function SearchBar() {
 
   return (
     <form className="search" role="search" onSubmit={submitSearch}>
-      {/* A neutral glass, not an engine's logo. The previous version drew Google's mark here,
-          which both implied an affiliation we do not have and advertised the engine lock-in. */}
-      <MagnifyingGlass className="search__glass" size={18} weight="bold" aria-hidden="true" />
+      {/* Our own glass, not an engine's logo. The first version drew Google's mark here, which
+          both implied an affiliation we do not have and advertised the engine lock-in. */}
+      <SearchGlass />
       <input
         aria-label="搜索或输入网址"
         name="query"

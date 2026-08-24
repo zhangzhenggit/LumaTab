@@ -164,7 +164,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   box-shadow: 0 8px 24px -6px rgba(0, 0, 0, .12);
 }
 
-.search__glass { flex: 0 0 auto; color: var(--t3); }
+.search__glass { flex: 0 0 auto; }
 
 .search input {
   min-width: 0;
