@@ -14,9 +14,12 @@ import { ICON_CACHE_NAME, ICON_FAILURE_KEY } from "../lib/icon-cache-keys.js";
 import { pageDeclaredCandidates, safeWebUrl, sanitizeSvg } from "../lib/icon-discovery.js";
 import { analyzeIconBlob } from "../lib/image-visibility.js";
 import { hasSiteAccess } from "../lib/site-access.js";
+import { pickBackdrop, SCORE_H, SCORE_W, scoreFromPixels } from "../lib/wallpaper-score.js";
 
+// n=8 is the most the archive will return. Every extra day is one more candidate for the
+// backdrop scoring in wallpaper-score.js, and it makes the settings picker an even grid.
 const BING_ENDPOINT =
-  "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=7&mkt=zh-CN";
+  "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=zh-CN";
 const CACHE_NAME = BACKGROUND_CACHE_NAME;
 const META_KEY = BACKGROUND_META_KEY;
 const REFRESH_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -485,6 +488,41 @@ async function resolveSiteIcons(sites, devicePixelRatio = 1, refresh = false) {
   return summary;
 }
 
+// Scored off the small preview rather than the wallpaper: eight downloads of ~60 KB instead of
+// eight of a megabyte, and the measurement is taken at 192x108 either way.
+const SCORE_VARIANT = "_640x360.jpg";
+
+async function scoreImage(image) {
+  const response = await fetchWithTimeout(validateImageUrl((image?.urlbase ?? "") + SCORE_VARIANT));
+  if (!response.ok) throw new Error(`Bing preview request failed: ${response.status}`);
+  // resizeQuality "high" matters here — a box filter would alias the fine pattern this is trying
+  // to detect into something that measures smoother than it looks.
+  const bitmap = await createImageBitmap(await response.blob(), {
+    resizeWidth: SCORE_W,
+    resizeHeight: SCORE_H,
+    resizeQuality: "high",
+  });
+  try {
+    const context = new OffscreenCanvas(SCORE_W, SCORE_H).getContext("2d", { willReadFrequently: true });
+    if (!context) return null;
+    context.drawImage(bitmap, 0, 0);
+    return scoreFromPixels(context.getImageData(0, 0, SCORE_W, SCORE_H).data, SCORE_W, SCORE_H);
+  } finally {
+    bitmap.close();
+  }
+}
+
+// Runs on the archive refresh path — at most every six hours, and never on first paint, because
+// the page reads Cache Storage directly and does not wait for any of this. Scoring lazily instead
+// and correcting afterwards was the obvious cheaper option and is the wrong one: it would show
+// the busy picture and then pull it out from under whoever was looking at it, which is a worse
+// experience than the problem being solved. An image that fails to score is passed through as
+// null; pickBackdrop treats that as "no evidence against it".
+async function chooseBackdropIndex(images) {
+  const scores = await Promise.all(images.map((image) => scoreImage(image).catch(() => null)));
+  return pickBackdrop(scores);
+}
+
 async function fetchArchive(previousState) {
   const response = await fetchWithTimeout(BING_ENDPOINT);
   if (!response.ok) throw new Error(`Bing archive request failed: ${response.status}`);
@@ -509,28 +547,92 @@ async function fetchArchive(previousState) {
   // newest image. Pinned keeps its picture as long as the archive still carries it.
   const pinnedStillPresent = previousState?.pinnedKey
     && images.some((image) => imageKey(image) === previousState.pinnedKey);
+  const pinned = mode === WALLPAPER_MODE_PINNED && preservedIndex >= 0;
   return {
     images,
     mode,
     pinnedKey: mode === WALLPAPER_MODE_PINNED && pinnedStillPresent ? previousState.pinnedKey : null,
-    selectedIndex: mode === WALLPAPER_MODE_PINNED && preservedIndex >= 0 ? preservedIndex : 0,
+    // Auto mode is the one that says "choose for me", so it is the one that gets to choose well:
+    // usually index 0, Bing's newest, but the most recent frame that is not a wall of pattern
+    // when today's is. A pinned choice belongs to the user and is never second-guessed — which
+    // is also why the eight preview downloads only happen in auto mode.
+    selectedIndex: pinned ? preservedIndex : await chooseBackdropIndex(images),
     fetchedAt: Date.now(),
   };
 }
 
-async function ensureImageCached(image) {
-  const cache = await caches.open(CACHE_NAME);
-  const request = backgroundCacheRequest(image);
-  if (await cache.match(request)) return request.url;
+// Bing serves one picture at several sizes off a single urlbase, and the `url` the archive hands
+// out is the smallest useful one. Today's is 333 KB for a frame full of tiled detail — roughly
+// 0.16 bits per pixel, which is invisible at 1:1 and very visible here, because this page blurs
+// the picture along its bottom edge and zooms it as it drifts, and both of those magnify exactly
+// what a low bitrate throws away.
+//
+// So there are two variants and a fallback chain for each. The archive is warmed at 1920x1200:
+// three times the bitrate of the default, and 16:10, which leaves vertical headroom for the
+// drift on a 16:9 display. The one picture actually on screen is upgraded again to UHD, because
+// at 1920 it is already being scaled up on any display wider than that before the drift's 10%
+// zoom is applied. Neither size is contractual — the chain ends at the archive's own URL, which
+// always exists, so a missing variant costs sharpness rather than the wallpaper.
+const IMAGE_VARIANT_HD = "_UHD.jpg";
+const IMAGE_VARIANT_STD = "_1920x1200.jpg";
+const HD_CHAIN = [IMAGE_VARIANT_HD, IMAGE_VARIANT_STD, null];
+const STD_CHAIN = [IMAGE_VARIANT_STD, null];
+// Written onto the cached response so a later request can tell which variant is on disk. Keeping
+// this in the cache entry rather than in a parallel index in chrome.storage is deliberate: the
+// two could fall out of step, and the answer is only ever needed at the moment the entry is read.
+const VARIANT_HEADER = "x-lumatab-variant";
 
-  const response = await fetchWithTimeout(image.imageUrl);
+async function fetchImage(url) {
+  const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error(`Bing image request failed: ${response.status}`);
   const contentType = response.headers.get("content-type") ?? "";
   const contentLength = Number(response.headers.get("content-length") ?? 0);
   if (!contentType.startsWith("image/") || contentLength > MAX_IMAGE_BYTES) {
     throw new Error("Invalid Bing image response");
   }
-  await cache.put(request, response.clone());
+  return { blob: await response.blob(), contentType };
+}
+
+// Walks the chain until something downloads. A constructed URL goes through validateImageUrl
+// exactly as the archive's own does, so a malformed urlbase fails the host/path check and is
+// simply skipped rather than becoming a request to somewhere unexpected.
+async function fetchVariant(image, chain) {
+  let failure = null;
+  for (const suffix of chain) {
+    try {
+      const url = suffix ? validateImageUrl((image?.urlbase ?? "") + suffix) : image?.imageUrl;
+      if (!url) throw new Error("Bing image has no URL");
+      return { ...(await fetchImage(url)), suffix };
+    } catch (error) {
+      failure = error;
+    }
+  }
+  throw failure ?? new Error("Bing image has no URL");
+}
+
+async function ensureImageCached(image, { hd = false } = {}) {
+  const cache = await caches.open(CACHE_NAME);
+  const request = backgroundCacheRequest(image);
+  const cached = await cache.match(request);
+  // A standard entry is a complete answer for the picker and for painting the page right now. It
+  // is only insufficient as the picture on screen, so wanting the upgrade is the one reason to go
+  // back to the network for something already on disk.
+  if (cached && (!hd || cached.headers.get(VARIANT_HEADER) === "hd")) return request.url;
+
+  let fetched;
+  try {
+    fetched = await fetchVariant(image, hd ? HD_CHAIN : STD_CHAIN);
+  } catch (error) {
+    // An upgrade that cannot be had is not a failure; the standard entry is still on screen.
+    if (hd && cached) return request.url;
+    throw error;
+  }
+  await cache.put(request, new Response(fetched.blob, {
+    headers: {
+      "content-type": fetched.contentType,
+      [VARIANT_HEADER]: fetched.suffix === IMAGE_VARIANT_HD ? "hd" : "std",
+    },
+  }));
   return request.url;
 }
 
@@ -563,8 +665,15 @@ async function resolveBackground({ forceArchive = false } = {}) {
     }
   }
 
+  const image = selectedImage(state);
   try {
-    await ensureImageCached(selectedImage(state));
+    await ensureImageCached(image);
+    // Both of these are errands, and neither may hold up the reply. The page has a usable
+    // picture the moment the line above returns; the UHD version is picked up by the next new
+    // tab, which on a new tab page is never far away. Awaiting it instead would make choosing a
+    // wallpaper in settings sit through a 3.8 MB download for a picture already on screen.
+    void ensureImageCached(image, { hd: true })
+      .catch((error) => console.info("LumaTab: could not upgrade wallpaper", error?.name || error));
     // Warm the rest of the archive after the visible one is safely cached, so the settings
     // picker has thumbnails ready without ever delaying first paint.
     void cacheWholeArchive(state);
