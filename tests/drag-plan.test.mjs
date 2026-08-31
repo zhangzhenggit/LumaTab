@@ -99,3 +99,36 @@ test("merging a link onto a link makes a folder; onto a folder it joins", () => 
   assert.deepEqual(joined.map((i) => i.id), ["b", "f"]);
   assert.deepEqual(joined[1].children.map((i) => i.id), ["x", "a"]);
 });
+
+// The drop animation is a two-part hand-off and neither half is visible from the other's file, so
+// this pins both ends of it.
+//
+// The grid still must not reflow during a drag — that is the whole architecture above — and the
+// DragOverlay still must vanish instantly rather than flying the ghost back to where the drag
+// began. What was added is the frame *after* the commit: useTileFlip animates every tile from
+// where it was to where it now is, and the dragged tile is the one exception, starting from the
+// rect dnd-kit reports at the moment the pointer let go. Lose that rect and the tile appears to
+// teleport back to its old cell before sliding home, which is worse than no animation at all.
+test("the drop hand-off keeps both of its halves", async () => {
+  const read = async (name) => (await import("node:fs/promises"))
+    .readFile(new URL(`../src/${name}`, import.meta.url), "utf8");
+
+  const app = await read("App.jsx");
+  assert.match(app, /dropAnimation=\{null\}/, "the ghost flies home again, over a grid that has already moved");
+
+  const shortcuts = await read("hooks/useShortcuts.js");
+  assert.match(shortcuts, /releaseRef\.current = \{[^}]*rect: event\.active\.rect\.current\?\.translated/,
+    "the release rect is no longer recorded, so the dragged tile teleports before it slides");
+
+  const flip = await read("hooks/useTileFlip.js");
+  assert.match(flip, /useLayoutEffect/, "FLIP must measure before the browser paints");
+  assert.match(flip, /prefers-reduced-motion/, "the drop animation ignores the reduced-motion setting");
+
+  // A sorted preview would put back exactly the flip-flop that drag-plan.js exists to prevent.
+  // Matched on the import rather than the identifier: both files name SortableContext and
+  // useSortable in comments explaining why they are not used.
+  const tile = await read("components/ShortcutTile.jsx");
+  for (const [name, source] of [["App.jsx", app], ["ShortcutTile.jsx", tile]]) {
+    assert.doesNotMatch(source, /from "@dnd-kit\/sortable"/, `${name} pulled the sortable preview back in`);
+  }
+});

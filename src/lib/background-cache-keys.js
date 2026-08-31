@@ -58,7 +58,11 @@ export const GRADIENTS = [
   // grey-greens and grey-purples that were both dull and still competing.
   { key: "grad-crimson", colors: ["#821C2A", "#AF3142"] },
   { key: "grad-ember", colors: ["#98381B", "#C9512C"] },
-  { key: "grad-amber", colors: ["#8D581B", "#C27D2E"] },
+  // Darker than the other warm pair on purpose. Amber is the one hue whose stops sit close to the
+  // tiles' value band to begin with, and the aurora blobs lift every surface a little — at the
+  // old #8D581B/#C27D2E it came out at 0.31 lit, level with the icons. Deepening the ramp buys
+  // back the headroom the blobs spend.
+  { key: "grad-amber", colors: ["#7A4A15", "#A96A24"] },
   { key: "grad-emerald", colors: ["#1A664A", "#2B916C"] },
   { key: "grad-teal", colors: ["#175E69", "#288695"] },
   { key: "grad-ocean", colors: ["#1B4F83", "#2D70B4"] },
@@ -87,6 +91,71 @@ export function gradientLuminance(colors) {
 
 export function gradientCss(colors) {
   return `linear-gradient(${GRADIENT_DEG}deg, ${colors.join(", ")})`;
+}
+
+// --- aurora -----------------------------------------------------------------------------------
+//
+// A two-stop ramp across a whole screen has one problem no amount of colour choice fixes: it is
+// flat, and it is flat in a way that also cannot be animated. Panning a linear gradient is
+// invisible — translate it and you get the same gradient, very slightly moved — so "the wallpaper
+// drifts" simply did not apply to the twelve solid backgrounds.
+//
+// Three soft blobs floating over the ramp solve both at once. They give the surface volume, and
+// because they are elements rather than colour stops, they can be moved on `transform` — which
+// the compositor handles without repainting anything.
+//
+// Their colours are derived from the ramp rather than hand-picked. Thirty-six new hex values
+// would be thirty-six new chances to break the two rules that keep a backdrop recessive (stops
+// within 60° of hue, luminance clear of the tiles' mid band); deriving them from stops that
+// already pass means they pass by construction. The ±22° spread is what stops three blobs of one
+// hue reading as a smudge, and it stays well inside the 60° budget.
+//
+// The lightness lifts are small and were tuned against that second rule, not by eye. Blobs have
+// to be lighter than the ramp — that is where the sense of volume comes from — but every point
+// of lift moves the whole surface toward the value band the icon tiles occupy, and at the first
+// values tried (+0.10/+0.04/+0.17) the amber preset landed squarely inside it.
+const BLOB_RECIPES = [
+  { stop: 1, hue: 22, lightness: 0.06, saturation: 0.06 },
+  { stop: 0, hue: -22, lightness: 0.02, saturation: 0 },
+  { stop: 1, hue: 0, lightness: 0.10, saturation: -0.05 },
+];
+
+function toHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l: lightness };
+  const d = max - min;
+  const saturation = lightness > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: (hue * 60 + 360) % 360, s: saturation, l: lightness };
+}
+
+function toHex({ h, s, l }) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const sector = Math.floor(h / 60) % 6;
+  const [r, g, b] = [
+    [c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x],
+  ][sector];
+  return `#${[r, g, b].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function clamp01(value) {
+  return Math.min(1, Math.max(0, value));
+}
+
+export function auroraBlobs(colors) {
+  return BLOB_RECIPES.map(({ stop, hue, lightness, saturation }) => {
+    const base = toHsl(colors[stop]);
+    return toHex({
+      h: (base.h + hue + 360) % 360,
+      s: clamp01(base.s + saturation),
+      l: clamp01(base.l + lightness),
+    });
+  });
 }
 
 export function findGradient(key) {

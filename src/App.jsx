@@ -12,6 +12,8 @@ import { useBingWallpaper } from "./hooks/useBingWallpaper";
 import { useNotice } from "./hooks/useNotice";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { useSiteAccess } from "./hooks/useSiteAccess";
+import { useWallpaperDrift } from "./hooks/useWallpaperDrift";
+import { Aurora } from "./components/Aurora";
 import { needsDarkInk, wallpaperFilterStyle } from "./lib/background-cache-keys";
 import { findItem } from "./lib/shortcuts-tree";
 
@@ -20,8 +22,15 @@ export function App({ initialWallpaper = null }) {
   const wallpaperApi = useBingWallpaper(notify, initialWallpaper);
   const { wallpaper, backgroundMeta, tuning, photoLuminance } = wallpaperApi;
   const shortcutsApi = useShortcuts(notify);
-  const { shortcuts, ready, sensors, activeId, mergeReadyId, dropIndicator } = shortcutsApi;
+  const { shortcuts, ready, sensors, activeId, landedId, mergeReadyId, dropIndicator } = shortcutsApi;
   const siteAccess = useSiteAccess(shortcuts, ready);
+  // Drives `scale` and `translate` on the wallpaper layer from its own clamped clock, so a tab
+  // coming back from hidden resumes instead of jumping. The seed identifies the picture, not the
+  // visit: it decides which direction this wallpaper drifts, and it has to stay the same across
+  // every tab showing the same wallpaper. See useWallpaperDrift.
+  const driftRef = useWallpaperDrift(
+    wallpaperApi.backgroundMeta?.startDate ?? wallpaperApi.wallpaper.gradientColors?.join("") ?? "",
+  );
 
   const [addDialog, setAddDialog] = useState(false);
   const [editor, setEditor] = useState(null);
@@ -108,17 +117,28 @@ export function App({ initialWallpaper = null }) {
   return (
     <main className={`newtab ${lightBackground ? "newtab--light" : ""}`}>
       {/* Brightness and blur are filters on this element, so they scale the actual pixels
-          instead of laying a veil over them — see wallpaperFilterStyle. */}
+          instead of laying a veil over them — see wallpaperFilterStyle. A solid background
+          paints itself through <Aurora> rather than through this element's background-image,
+          because it is three moving elements over a ramp rather than one flat gradient. */}
       <div
+        ref={driftRef}
         className="wallpaper"
         style={{
-          ...(wallpaper.gradient
-            ? { backgroundImage: wallpaper.gradient }
-            : { backgroundImage: `url("${wallpaper.url}")` }),
+          ...(wallpaper.gradient ? null : { backgroundImage: `url("${wallpaper.url}")` }),
           ...wallpaperFilterStyle(tuning),
         }}
-      />
-      <div className="scrim scrim--top" /><div className="scrim scrim--bottom" />
+      >
+        {wallpaper.gradient && <Aurora colors={wallpaper.gradientColors} />}
+      </div>
+      {/* Two tint ramps. They are empty on purpose: three attempts at a progressive backdrop blur
+          in these bands all shipped and all came back as bug reports, because a masked
+          backdrop-filter crossfades a blurred copy over the sharp one rather than blurring it,
+          and on a patterned photograph that crossfade is a double exposure. See .edge in
+          styles.css for the full autopsy — and do not put layers back in here. */}
+      <div className="edge edge--top" aria-hidden="true" />
+      <div className="edge edge--bottom" aria-hidden="true" />
+      <div className="vignette" aria-hidden="true" />
+      <div className="grain" aria-hidden="true" />
       {siteAccess.showPrompt && (
         <SiteAccessPrompt onGrant={siteAccess.grant} onDismiss={siteAccess.dismiss} />
       )}
@@ -130,17 +150,19 @@ export function App({ initialWallpaper = null }) {
             flying the ghost back to where the drag began would animate to the wrong place. */}
         <DndContext sensors={sensors} onDragStart={dragStart} onDragMove={shortcutsApi.dragMove} onDragEnd={shortcutsApi.dragEnd} onDragCancel={shortcutsApi.resetDragState}>
           <section className={`shortcut-grid ${ready ? "shortcut-grid--ready" : ""} ${activeId ? "shortcut-grid--editing" : ""}`} aria-label="快捷链接">
-            {shortcuts.map((item) => (
+            {shortcuts.map((item, index) => (
               <ShortcutTile
                 key={item.id}
                 item={item}
+                index={index}
                 onActivate={activate}
                 onContextMenu={openItemMenu}
                 dropMode={mergeReadyId === item.id ? (item.type === "folder" ? "folder" : "merge") : null}
                 dropEdge={dropIndicator?.targetId === item.id ? dropIndicator.side : null}
+                landed={landedId === item.id}
               />
             ))}
-            <AddTile onClick={() => setAddDialog(true)} />
+            <AddTile index={shortcuts.length} onClick={() => setAddDialog(true)} />
           </section>
           <DragOverlay dropAnimation={null}>{activeItem ? <ShortcutGhost item={activeItem} /> : null}</DragOverlay>
         </DndContext>

@@ -5,6 +5,7 @@ import { collapseThinFolders } from "../lib/shortcuts-tree";
 import { applyPlan, DROP_MERGE, DROP_REORDER, planDrop, pointerAt, samePlan } from "../lib/drag-plan";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
+import { useTileFlip } from "./useTileFlip";
 
 function countLinks(items) {
   return items.reduce((total, item) => item.type === "folder"
@@ -47,6 +48,10 @@ export function useShortcuts(notify) {
   const [ready, setReady] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [dropPlan, setDropPlan] = useState(null);
+  // The tile that just absorbed a merge, for the length of one landing animation.
+  const [landedId, setLandedId] = useState(null);
+  // Handed to useTileFlip, which reads it once per commit and clears it.
+  const releaseRef = useRef(null);
   const shortcutsRef = useRef(shortcuts);
   shortcutsRef.current = shortcuts;
   // The grid exactly as it looked when the drag began. It is deliberately never re-read: tiles do
@@ -162,12 +167,34 @@ export function useShortcuts(notify) {
 
   function dragEnd(event) {
     const plan = planFor(event);
-    setShortcuts((current) => applyPlan(current, plan, {
-      sourceId: String(event.active.id),
-      makeFolderId: () => createId("folder"),
-    }));
+    const sourceId = String(event.active.id);
+    // Where the tile actually was when the pointer let go, so useTileFlip can fly it home from
+    // there instead of from the cell it had been sitting in all along. dnd-kit already tracks
+    // this: `translated` is the draggable's rect with the drag delta applied.
+    releaseRef.current = { id: sourceId, rect: event.active.rect.current?.translated ?? null };
+    // Settled before the updater rather than inside it, because the landing animation needs to
+    // know the id and a merge onto a plain link mints a brand new folder. React also invokes
+    // updaters twice under StrictMode, and an id that differs between the two runs is a bug
+    // waiting to happen.
+    const folderId = createId("folder");
+    setShortcuts((current) => applyPlan(current, plan, { sourceId, makeFolderId: () => folderId }));
+    if (plan?.kind === DROP_MERGE) {
+      // The dragged tile is gone — swallowed by the target — so the feedback has to come from
+      // whatever swallowed it. Merging onto a folder lands on that folder; merging onto a link
+      // lands on the folder the two of them just became.
+      const target = shortcutsRef.current.find((item) => item.id === plan.targetId);
+      setLandedId(target?.type === "folder" ? plan.targetId : folderId);
+    }
     resetDragState();
   }
+
+  // One shot, then forgotten: leaving the class on would re-run the animation the next time this
+  // tile re-renders for an unrelated reason.
+  useEffect(() => {
+    if (!landedId) return undefined;
+    const timer = setTimeout(() => setLandedId(null), 400);
+    return () => clearTimeout(timer);
+  }, [landedId]);
 
 
   function addLink(values) {
@@ -276,9 +303,11 @@ export function useShortcuts(notify) {
   }
 
 
+  useTileFlip(shortcuts, releaseRef);
+
   return {
     shortcuts, ready, sensors,
-    activeId,
+    activeId, landedId,
     mergeReadyId: dropPlan?.kind === DROP_MERGE ? dropPlan.targetId : null,
     dropIndicator: dropPlan?.kind === DROP_REORDER ? dropPlan : null,
     dragStart, dragMove, dragEnd, resetDragState,

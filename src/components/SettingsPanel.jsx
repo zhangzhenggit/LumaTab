@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowClockwise, ArrowCounterClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@phosphor-icons/react";
+import { Aurora } from "./Aurora";
 import { wallpaperThumbnail } from "../lib/background";
-import { GRADIENTS, gradientCss } from "../lib/background-cache-keys";
+import { GRADIENTS } from "../lib/background-cache-keys";
 import { validateShortcutPayload } from "../hooks/useShortcuts";
 import { iconStatus, iconSummary } from "../lib/icon-status";
 
@@ -49,16 +50,18 @@ function WallpaperThumb({ image, active, onClick }) {
   );
 }
 
+// Renders the wallpaper itself, shrunk — same component, same colours, same drift. An
+// approximation here would be a picker that shows you something other than what you are picking.
 function GradientSwatch({ gradient, active, onClick }) {
   return (
     <button
       className={`gradient-card ${active ? "gradient-card--active" : ""}`}
       type="button"
-      style={{ backgroundImage: gradientCss(gradient.colors) }}
       onClick={onClick}
       aria-label="使用纯色背景"
       aria-pressed={active}
     >
+      <Aurora colors={gradient.colors} still />
       {active && <span className="gradient-card__check" aria-hidden="true"><Check size={11} weight="bold" /></span>}
     </button>
   );
