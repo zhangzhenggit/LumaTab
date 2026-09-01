@@ -112,3 +112,25 @@ test("a band merged onto a tile takes all of them into the folder", () => {
     { sourceId: "a", sourceIds: ["a", "f"], makeFolderId: () => "new" });
   assert.deepEqual(mixed.map((i) => i.id), ["b", "c", "a", "f"]);
 });
+
+// Inside an open folder there is nothing to merge into: folders do not nest, and every neighbour
+// in there is a plain link. Without `merge: false` the ring would arm for an outcome applyPlan
+// then refuses, promising a folder-in-a-folder that cannot exist.
+test("a drag inside an open folder can only reorder", () => {
+  const inFolder = { sourceId: "a", sourceType: "link", merge: false };
+  // Dead centre of b's artwork — the one place that is unambiguously a merge anywhere else.
+  const plan = planDrop({ x: 180, y: 45 }, grid, inFolder);
+  assert.equal(plan.kind, DROP_REORDER);
+  assert.equal(plan.targetId, "b");
+  // The default is unchanged, so the main grid still merges.
+  assert.equal(planDrop({ x: 180, y: 45 }, grid, { sourceId: "a", sourceType: "link" }).kind, DROP_MERGE);
+});
+
+test("reordering inside a folder is the same splice the grid uses", () => {
+  const children = [link("a"), link("b"), link("c"), link("d")];
+  const moved = applyPlan(children, { kind: DROP_REORDER, targetId: "c", side: "after" }, { sourceId: "a" });
+  assert.deepEqual(moved.map((i) => i.id), ["b", "c", "a", "d"]);
+  // Dropped back where it started, the original array comes back — so a folder that was only
+  // opened and poked at does not count as an edit and does not rewrite storage.
+  assert.equal(applyPlan(children, { kind: DROP_REORDER, targetId: "b", side: "before" }, { sourceId: "a" }), children);
+});

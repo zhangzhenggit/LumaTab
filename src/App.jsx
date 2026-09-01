@@ -196,7 +196,6 @@ export function App({ initialWallpaper = null }) {
                 {block.marker && (
                   <SectionHeading
                     section={block.marker}
-                    index={block.markerIndex}
                     blockIndex={blockIndex}
                     count={block.tiles.length}
                     editing={editingSection === block.marker.id}
@@ -212,11 +211,11 @@ export function App({ initialWallpaper = null }) {
                     onToggleCollapse={() => shortcutsApi.toggleSectionCollapse(block.marker.id)}
                   />
                 )}
-                {!isCollapsed(block.marker) && block.tiles.map(({ item, index }) => (
+                {!isCollapsed(block.marker) && block.tiles.map(({ item }) => (
                   <ShortcutTile
                     key={item.id}
                     item={item}
-                    index={index}
+                    wave={blockIndex}
                     // Dimmed for two different reasons that mean the same thing: this tile is being
                     // carried. Either its section's heading is the thing being dragged, or it is one
                     // of the band the cursor picked up — and the passengers have to read as picked up
@@ -232,12 +231,12 @@ export function App({ initialWallpaper = null }) {
                   />
                 ))}
                 {block.marker && !isCollapsed(block.marker) && block.tiles.length === 0 && (
-                  <SectionDropCell section={block.marker} index={block.markerIndex + 1} armed={dropIndicator?.targetId === block.marker.id} />
+                  <SectionDropCell section={block.marker} wave={blockIndex} armed={dropIndicator?.targetId === block.marker.id} />
                 )}
                 {/* One "+", at the very end of the grid, so a new link joins whichever section is
                     last — the same direction "新建分区" grows the page in. */}
                 {blockIndex === blocks.length - 1 && (
-                  <AddTile index={shortcuts.length} onClick={() => setAddDialog(true)} />
+                  <AddTile wave={blockIndex} onClick={() => setAddDialog(true)} />
                 )}
                 {/* A full-width row inside the grid rather than a control under it. auto-fill
                     keeps its empty tracks, so the tiles hug the left of a track set that is
@@ -281,6 +280,7 @@ export function App({ initialWallpaper = null }) {
         onClose={() => setOpenFolder(null)}
         onItemContextMenu={openItemMenu}
         onExtract={(folderId, item) => shortcutsApi.moveItemOut({ folderId, itemId: item.id }, item)}
+        onReorder={shortcutsApi.reorderFolder}
         onOpenItem={(item) => window.location.assign(item.url)}
       />
       <ItemContextMenu

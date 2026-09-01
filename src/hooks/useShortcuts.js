@@ -348,6 +348,12 @@ export function useShortcuts(notify) {
     notify("分区已删除，链接已并入上一区");
   }
 
+  function reorderFolder(folderId, children) {
+    setShortcuts((current) => current.map((item) => (
+      item.id === folderId && item.type === "folder" ? { ...item, children } : item
+    )));
+  }
+
   function dissolveFolder(ref) {
     setShortcuts((current) => {
       const folderIndex = current.findIndex((item) => item.id === ref.itemId);
@@ -370,7 +376,7 @@ export function useShortcuts(notify) {
     onBandPointerDown: selection.onPointerDown,
     toggleSelected: selection.toggle, clearSelection: selection.clear,
     carried: activeId ? carriedRef.current : [],
-    addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
+    addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder, reorderFolder,
     addSection, renameSectionTo, deleteSection, toggleSectionCollapse, setSectionIconTo, setSectionAccentTo,
     sectionPlan: dropPlan?.kind === DROP_SECTION ? dropPlan : null,
     replaceAll, mergeIn,

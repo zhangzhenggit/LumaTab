@@ -313,7 +313,7 @@ test("motion runs off one set of tokens, and reduced motion actually stops it", 
   assert.match(entranceRule, /animation:\s*tile-in/);
   assert.ok(entranceRule.includes(".shortcut-grid--ready .section-heading"),
     "the heading is not in the entrance queue with the tiles");
-  assert.match(css, /animation-delay:\s*calc\(min\(var\(--i, 0\), \d+\)/);
+  assert.match(css, /animation-delay:\s*calc\(min\(var\(--wave, 0\), \d+\)/);
 
   // Shortening an infinite animation's duration does not stop it — it runs the whole cycle every
   // hundredth of a millisecond, which is worse than leaving it alone. This is the line that

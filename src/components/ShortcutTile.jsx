@@ -44,7 +44,7 @@ function TileLabel({ name }) {
 // order, and that preview was the whole problem: it moved the tile the pointer was aiming at.
 // The tile therefore carries no transform at all — it sits still for the entire drag, and the
 // only feedback is the ring on a merge target or the caret in the gap it would slot into.
-export function ShortcutTile({ item, index = 0, muted, selected, onActivate, onContextMenu, onToggleSelect, dropMode, dropEdge, landed }) {
+export function ShortcutTile({ item, wave = 0, muted, selected, onActivate, onContextMenu, onToggleSelect, dropMode, dropEdge, landed }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: item.id });
 
   function keyDown(event) {
@@ -60,9 +60,9 @@ export function ShortcutTile({ item, index = 0, muted, selected, onActivate, onC
       // `muted` is a tile inside the section whose heading is being dragged: the block moves
       // as one, so the whole block has to read as picked up, not just the line above it.
       className={`shortcut ${isDragging || muted ? "shortcut--dragging" : ""} ${dropMode ? "shortcut--merge-ready" : ""} ${landed ? "shortcut--landed" : ""} ${selected ? "shortcut--selected" : ""}`}
-      // Its place in the entrance queue; see .shortcut-grid--ready .shortcut in styles.css. The
-      // grid's column count comes from auto-fill, so this is the only ordering either side knows.
-      style={{ "--i": index }}
+      // Which wave of the entrance this tile arrives in — its section, not its position. See
+      // .shortcut-grid--ready .shortcut in styles.css for why it is not per tile.
+      style={{ "--wave": wave }}
       data-tile-id={item.id}
       role="link"
       tabIndex="0"
@@ -103,9 +103,9 @@ export function ShortcutGhost({ item, count = 1 }) {
 
 // No label: an unnamed "+" is what closes the row in WeTab, and a caption under it would read
 // as one more site rather than as the affordance to add one.
-export function AddTile({ index = 0, onClick }) {
+export function AddTile({ wave = 0, onClick }) {
   return (
-    <button className="shortcut" type="button" style={{ "--i": index }} aria-label="添加快捷方式" onClick={onClick}>
+    <button className="shortcut" type="button" style={{ "--wave": wave }} aria-label="添加快捷方式" onClick={onClick}>
       <span className="shortcut__icon shortcut__icon--add"><Plus size={24} weight="regular" aria-hidden="true" /></span>
     </button>
   );

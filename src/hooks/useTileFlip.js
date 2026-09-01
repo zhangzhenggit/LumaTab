@@ -30,7 +30,9 @@ export function useTileFlip(items, releaseRef) {
   const previous = useRef(new Map());
 
   useLayoutEffect(() => {
-    const nodes = document.querySelectorAll(".shortcut-grid [data-tile-id]");
+    // Every tile on the page, not just the ones in the main grid: an open folder reorders its
+    // own children now, and ids are unique across both, so one query serves both surfaces.
+    const nodes = document.querySelectorAll("[data-tile-id]");
     const current = new Map();
     const released = releaseRef.current;
     releaseRef.current = null;

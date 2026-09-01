@@ -13,7 +13,7 @@ const MAX_NAME = 24;
 // Windows 10's Start groups put a drag grip in the same place — so both live here, revealed on
 // hover and on keyboard focus.
 export function SectionHeading({
-  section, index, blockIndex, count, editing, seamArmed, dropArmed,
+  section, blockIndex, count, editing, seamArmed, dropArmed,
   onStartEdit, onCommit, onCancel, onContextMenu, onToggleCollapse,
 }) {
   const inputRef = useRef(null);
@@ -75,7 +75,7 @@ export function SectionHeading({
         isDragging ? "section-heading--dragging" : "",
         dropArmed ? "section-heading--armed" : "",
       ].filter(Boolean).join(" ")}
-      style={{ "--i": index }}
+      style={{ "--wave": blockIndex }}
       data-seam={blockIndex}
       // Only when collapsed. The block has no tiles on screen then, so the heading itself has to
       // be the thing a drag can aim at; while it is expanded its own tiles are the targets, and a
@@ -156,11 +156,11 @@ export function SectionHeading({
 // the "+" tile looking almost exactly like it while meaning something entirely different; Notion
 // and Steam both leave an empty group as a heading over blank space, and the ring only has to
 // exist at the moment it is being aimed at.
-export function SectionDropCell({ section, index, armed }) {
+export function SectionDropCell({ section, wave, armed }) {
   return (
     <div
       className={`shortcut section-drop ${armed ? "section-drop--armed" : ""}`}
-      style={{ "--i": index }}
+      style={{ "--wave": wave }}
       data-tile-id={section.id}
       aria-hidden="true"
     >

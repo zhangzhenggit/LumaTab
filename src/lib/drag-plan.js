@@ -57,7 +57,7 @@ function centreGap(point, cell) {
 // The pointer is resolved to a cell even when it is nowhere near one (below the last row, out in
 // the margin, over the "+" tile), by falling back to the closest cell centre. A drag released in
 // empty space then still lands somewhere predictable instead of being silently thrown away.
-export function planDrop(point, cells, { sourceId, sourceIds, sourceType }) {
+export function planDrop(point, cells, { sourceId, sourceIds, sourceType, merge = true }) {
   if (!point || !cells?.length) return null;
   // Every tile being carried is excluded, not just the one under the cursor. With a rubber-band
   // selection in hand the others are still sitting in the grid, and one of them would otherwise
@@ -76,7 +76,11 @@ export function planDrop(point, cells, { sourceId, sourceIds, sourceType }) {
 
   // Only a link can be merged, and folders never nest, so dragging a folder is always a reorder.
   // A section marker is not a tile and can absorb nothing, so it is never a merge target either.
-  const mergeable = sourceType === "link" && (hit.type === "link" || hit.type === "folder");
+  // `merge: false` is for a grid where there is nothing to merge into — inside an open folder,
+     // where folders cannot nest and every neighbour is a plain link. Without it, aiming at a
+     // neighbour's artwork inside a folder would arm a merge that applyPlan then has to refuse,
+     // and the ring would promise something that never happens.
+  const mergeable = merge && sourceType === "link" && (hit.type === "link" || hit.type === "folder");
   if (mergeable && isInside(point, hit.icon, MERGE_PADDING)) {
     return { kind: DROP_MERGE, targetId: hit.id, side: null };
   }

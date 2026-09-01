@@ -457,23 +457,29 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   margin-inline: auto;
   opacity: 0;
 }
-/* The grid switches on instantly now; the tiles arrive one after another instead.
-   This is the single animation every user sees every single time they open a tab, and it used to
-   be a 160ms opacity fade of the whole block — the flattest moment in the product, in the most
-   valuable position. Each tile rises 10px and settles, delayed by its own index.
+/* The single animation every user sees every single time they open a tab. It was a 160ms opacity
+   fade of the whole block once — the flattest moment in the product, in the most valuable
+   position — and then it was a per-tile stagger, which was worse for a different reason.
 
-   Index order, not row order: the column count comes from `auto-fill`, so nothing here can know
-   where a row ends, and sweeping by index reads as a diagonal anyway. 24ms is close to the floor
-   at which a stagger still registers as sequence rather than as jitter; the cap at 15 is because
-   the last tile of a full grid should not be waiting on the fortieth step of a queue. `backwards`
-   is what holds a tile invisible through its own delay instead of flashing it first. */
+   A per-tile stagger is a queue. At 16 columns the sweep has to cross the entire screen before it
+   finishes, and past the cap every remaining tile lands in one clump, so a wide grid read as a
+   list being populated rather than a page arriving. Dropping the step below ~24ms does not fix
+   it either: under that it stops registering as sequence and starts reading as jitter.
+
+   So the wave is per *section*, not per tile. A grid nobody has divided has exactly one wave and
+   arrives as one motion, which is what it should always have been; a divided grid arrives in the
+   two or three steps its own structure already has, and the animation says something true about
+   the page instead of counting to forty. `backwards` holds a tile invisible through its delay
+   rather than flashing it first. */
 .shortcut-grid--ready { opacity: 1; }
 .shortcut-grid--ready .shortcut,
 .shortcut-grid--ready .section-heading {
   animation: tile-in var(--dur-3) var(--ease-out) backwards;
-  animation-delay: calc(min(var(--i, 0), 15) * 24ms);
+  animation-delay: calc(min(var(--wave, 0), 6) * 70ms);
 }
-@keyframes tile-in { from { opacity: 0; transform: translateY(10px) scale(.94); } }
+/* Softer than it was, because a whole section now moves together: at scale(.94) sixteen tiles
+   arriving as one block read as the row being zoomed rather than settling. */
+@keyframes tile-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
 
 .shortcut {
   /* Flex column, not block: a <button> vertically centres its own content, so the label-less Add
@@ -713,6 +719,24 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 .shortcut__caret--before { left: -2px; }
 .shortcut__caret--after { right: -2px; }
+/* Two changes for the open folder, both because it is the one surface here that is not a
+   photograph and not at the top of the stack.
+
+   Colour: white with a dark glow is exactly right over a picture and invisible on a near-white
+   card, so in there it flips to the system blue the rest of the app uses for a live target.
+
+   Height: the caret cannot win the z-order in here. `.folder-panel` carries a backdrop-filter,
+   which creates a stacking context, so the caret's z-index 1000 is clamped inside a surface that
+   has to stay *below* the drag ghost — and raising the panel instead would bury the ghost, which
+   is worse. The 60px caret sat exactly in the icon band, which is precisely where the ghost is.
+   Running it the full height of the cell puts half of it clear of a 60px ghost, and a tall bar
+   does not read as a row divider in here the way it would in a multi-row grid. */
+.folder-panel .shortcut__caret {
+  top: 2px;
+  height: calc(var(--cell-size) - 4px);
+  background: #0a84ff;
+  box-shadow: 0 0 10px rgba(10, 132, 255, .45);
+}
 @keyframes caret-in {
   from { opacity: 0; transform: scaleY(.55); }
   to   { opacity: 1; transform: scaleY(1); }
@@ -1389,6 +1413,8 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   justify-content: center;
 }
 .folder-panel__item {
+  /* The caret that shows where a reordering drop will land is absolutely positioned against it. */
+  position: relative;
   display: block;
   cursor: pointer;
   touch-action: none;
