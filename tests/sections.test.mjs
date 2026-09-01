@@ -331,13 +331,50 @@ test("a glyph travels with the file, and an unknown one is dropped, not fatal", 
   assert.equal(countLinks(future), 1);
 });
 
-// The "no icon" cell sits in the same grid as the glyphs, so the two together have to fill whole
-// rows. At twenty-four glyphs the panel ended on a row holding one orphan, which is the kind of
-// thing that comes straight back the next time somebody adds an icon they like.
-test("the icon picker fills whole rows, counting the one that clears it", async () => {
-  const { SECTION_ICONS, SECTION_ICON_COLUMNS, isSectionIcon } = await import("../src/lib/section-icons.js");
-  assert.equal((SECTION_ICONS.length + 1) % SECTION_ICON_COLUMNS, 0,
-    `${SECTION_ICONS.length} glyphs plus the clear cell leaves a short row of ${(SECTION_ICONS.length + 1) % SECTION_ICON_COLUMNS}`);
+// Every shelf in the picker has to fill whole rows, or the panel ends a group on an orphan.
+test("every icon group fills whole rows, and every glyph has a word", async () => {
+  const { SECTION_ICON_GROUPS, SECTION_ICONS, SECTION_ICON_COLUMNS, isSectionIcon, sectionIconLabel } =
+    await import("../src/lib/section-icons.js");
+
+  for (const group of SECTION_ICON_GROUPS) {
+    assert.equal(group.icons.length % SECTION_ICON_COLUMNS, 0,
+      `"${group.label}" holds ${group.icons.length} glyphs, which leaves a short row`);
+    assert.ok(group.label, "a group with no label is a wall, not a shelf");
+  }
+
   assert.equal(new Set(SECTION_ICONS).size, SECTION_ICONS.length, "the set has a duplicate in it");
   assert.ok(SECTION_ICONS.every(isSectionIcon) && !isSectionIcon("Nope"));
+  // Forty-eight silhouettes with no words is a search, not a choice; the label is the tooltip.
+  for (const key of SECTION_ICONS) {
+    assert.ok(sectionIconLabel(key), `${key} has no label to show on hover`);
+  }
+});
+
+// Every key is a storage value as well as a picker entry. Dropping one does not merely take it
+// out of the panel: every section already using it silently loses its glyph on the next load,
+// with nothing anywhere to say why. Renaming the set is fine; shrinking it is not.
+test("no glyph that has ever shipped can be removed from the set", async () => {
+  const { isSectionIcon } = await import("../src/lib/section-icons.js");
+  const shipped = [
+    "Briefcase", "Code", "Terminal", "Bug", "Robot", "Wrench", "ChartLine", "Package",
+    "PaintBrush", "Palette", "Camera", "FilmSlate", "MusicNotes", "BookOpen", "GraduationCap",
+    "Newspaper", "House", "ShoppingCart", "ForkKnife", "Airplane", "GameController", "ChatCircle",
+    "Heart",
+  ];
+  const lost = shipped.filter((key) => !isSectionIcon(key));
+  assert.deepEqual(lost, [], `these keys are in users' storage and no longer render: ${lost.join(", ")}`);
+});
+
+// The picker names its glyphs; SectionIcon is what actually draws them. A key in one and not the
+// other renders nothing at all, and nothing in the build says so.
+test("every glyph the picker offers can actually be drawn", async () => {
+  const { SECTION_ICONS } = await import("../src/lib/section-icons.js");
+  const source = await (await import("node:fs/promises"))
+    .readFile(new URL("../src/components/SectionIcon.jsx", import.meta.url), "utf8");
+  const map = source.slice(source.indexOf("const GLYPHS = {"), source.indexOf("};", source.indexOf("const GLYPHS = {")));
+  // Split on anything that is not a name character, so no regex escaping is involved.
+  const names = new Set(map.split(/[^A-Za-z0-9]+/));
+  for (const key of SECTION_ICONS) {
+    assert.ok(names.has(key), `${key} is offered by the picker but not imported`);
+  }
 });

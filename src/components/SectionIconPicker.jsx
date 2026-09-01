@@ -1,12 +1,12 @@
 import { Prohibit } from "@phosphor-icons/react";
-import { SECTION_ICONS } from "../lib/section-icons";
+import { SECTION_ICON_GROUPS } from "../lib/section-icons";
 import { SectionIcon } from "./SectionIcon";
 
-// Measured, not guessed: 8 columns of 34px plus 2px gaps and 8px of padding, over three rows.
-// They only exist to keep the panel on screen near the edges, so being a couple of pixels out
-// costs nothing — being 50 out means it opens half off the bottom.
+// Measured, not guessed: eight 34px columns with 2px gaps inside 8px of padding, six shelves
+// each carrying a label. They exist only to keep the panel on screen near an edge, so a couple
+// of pixels out costs nothing — fifty out means it opens half off the bottom.
 const PANEL_W = 302;
-const PANEL_H = 122;
+const PANEL_H = 424;
 
 export function SectionIconPicker({ picker, current, onPick, onClose }) {
   if (!picker) return null;
@@ -22,25 +22,36 @@ export function SectionIconPicker({ picker, current, onPick, onClose }) {
         style={{ left, top }}
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="icon-picker__grid">
-          {SECTION_ICONS.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={`icon-picker__cell ${current === name ? "icon-picker__cell--on" : ""}`}
-              aria-label={name}
-              onClick={() => onPick(name)}
-            ><SectionIcon name={name} /></button>
-          ))}
-          {/* Last, not first: it shares the grid with the glyphs, so putting it in front would
-              push every category out of the row it was grouped into. */}
+        {/* Out of the grid and into the header. It shared a row with the glyphs while there were
+            two dozen of them; with six labelled shelves it would have to belong to one of them,
+            and it belongs to none. */}
+        <div className="icon-picker__head">
+          <span className="icon-picker__title">分区图标</span>
           <button
             type="button"
-            className={`icon-picker__cell ${current ? "" : "icon-picker__cell--on"}`}
-            aria-label="不使用图标"
+            className={`icon-picker__clear ${current ? "" : "icon-picker__clear--on"}`}
             onClick={() => onPick(null)}
-          ><Prohibit size={17} /></button>
+          ><Prohibit size={13} weight="bold" />不使用</button>
         </div>
+        {SECTION_ICON_GROUPS.map((group) => (
+          <div className="icon-picker__group" key={group.label}>
+            <span className="icon-picker__label">{group.label}</span>
+            <div className="icon-picker__grid">
+              {group.icons.map(([name, label]) => (
+                <button
+                  key={name}
+                  type="button"
+                  className={`icon-picker__cell ${current === name ? "icon-picker__cell--on" : ""}`}
+                  // Both, and deliberately: `title` is the hover tooltip, `aria-label` is what a
+                  // screen reader reads. Forty-eight silhouettes with no words is a search.
+                  title={label}
+                  aria-label={label}
+                  onClick={() => onPick(name)}
+                ><SectionIcon name={name} /></button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

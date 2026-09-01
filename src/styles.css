@@ -1161,10 +1161,42 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-line) inset;
   animation: dialog-in var(--dur-2) var(--ease-out);
 }
+.icon-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 8px 6px;
+}
+.icon-picker__title { color: var(--t2); font-size: 12px; font-weight: 600; }
+.icon-picker__clear {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--t2);
+  font-size: 12px;
+  font-family: inherit;
+  background: rgba(0, 0, 0, .06);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.icon-picker__clear:hover { background: rgba(0, 0, 0, .11); color: var(--t1); }
+.icon-picker__clear--on,
+.icon-picker__clear--on:hover { color: #fff; background: #0a84ff; }
+
+.icon-picker__group + .icon-picker__group { margin-top: 6px; }
+.icon-picker__label {
+  display: block;
+  padding: 0 0 3px 6px;
+  color: var(--t3);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
 .icon-picker__grid {
   display: grid;
-  /* Kept in step with SECTION_ICON_COLUMNS; a test pins that the glyphs plus the clear cell
-     fill whole rows at this width. */
+  /* Kept in step with SECTION_ICON_COLUMNS; a test pins that every group fills whole rows. */
   grid-template-columns: repeat(8, 34px);
   gap: 2px;
 }
