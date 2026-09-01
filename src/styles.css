@@ -475,174 +475,6 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 @keyframes tile-in { from { opacity: 0; transform: translateY(10px) scale(.94); } }
 
-/* ---------- section headings ---------- */
-
-/* The grid stays ONE grid; a heading is a full-width row inside it. That is what lets everything
-   else stand still: measureGrid still returns one flat list of cells, planDrop still picks the
-   nearest icon centre straight across a heading, and dragging a link from the last row of one
-   section into the first row of the next is an ordinary reorder with no new code behind it. One
-   grid per section would also have let each one resolve its own auto-fill column count, so two
-   sections could disagree about where column 1 is — on a width that fits 7.5 cells they would
-   still agree, but a section holding a single tile would not stretch the same way. */
-.section-heading {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: flex-end;
-  min-width: 0;
-  /* Aligned to the icon's left edge, not the cell's. The cell carries 30px of horizontal padding,
-     so a heading flush with the track would hang 30px to the left of every icon beneath it.
-     Vertical space is asymmetric on purpose: row-gap already puts 34px on both sides, and the
-     padding adds to the top only, so a heading ends up roughly twice as far from the section
-     above as from the tiles it names — otherwise it reads as belonging to the wrong one. */
-  padding: 30px var(--cell-pad-x) 0;
-}
-/* Nothing above it to be spaced away from. */
-.section-heading:first-child { padding-top: 0; }
-
-/* A heading whose name was cleared keeps the break and gives back the line: the row is laid out
-   at zero height, so the 34px row-gaps either side of it simply meet and the grid reads as
-   divided rather than captioned. The way back is an overlay that occupies no layout at all —
-   position: absolute in a 0px row — so an unnamed section costs exactly nothing until pointed at.
-   That is also why the row keeps `position: relative` and its padding is stripped rather than
-   the element being dropped entirely: with no element there is nothing to hover, and no way to
-   ever give the section a name again. */
-.section-heading--unnamed {
-  position: relative;
-  height: 0;
-  padding: 0;
-}
-.section-heading__add {
-  position: absolute;
-  top: -14px;
-  left: calc(var(--cell-pad-x) - 9px);
-  padding: 3px 9px;
-  border: 0;
-  border-radius: 7px;
-  color: #fff;
-  font-size: 13px;
-  font-family: inherit;
-  line-height: 22px;
-  white-space: nowrap;
-  background: rgba(255, 255, 255, .14);
-  cursor: pointer;
-  opacity: 0;
-  text-shadow: var(--label-shadow);
-  transition: opacity var(--dur-2) var(--ease-out);
-}
-.section-heading--unnamed:hover .section-heading__add,
-.section-heading__add:focus-visible {
-  opacity: 1;
-  outline: none;
-}
-
-.section-heading__name,
-.section-heading__input {
-  max-width: 100%;
-  color: #fff;
-  /* A step above the 14px captions, and the step has to be visible from across the page or the
-     heading reads as one more label that happens to be bold. Size does most of that work here;
-     weight alone at caption size did not separate them. */
-  font-size: 17px;
-  font-weight: 600;
-  font-family: inherit;
-  line-height: 24px;
-  letter-spacing: .01em;
-  text-shadow: var(--label-shadow);
-}
-.section-heading__name {
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: text;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: opacity var(--dur-2) var(--ease-out);
-}
-.section-heading__name:hover { opacity: .72; }
-/* Negative inline margin so the text does not shift sideways when the field appears around it:
-   the pill's own padding would otherwise push the first character 8px to the right at the exact
-   moment the eye is on it. */
-.section-heading__input {
-  min-width: 140px;
-  margin-inline: -9px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, .16);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42);
-  outline: none;
-}
-.newtab--light .section-heading__name,
-.newtab--light .section-heading__input,
-.newtab--light .section-heading__add,
-.newtab--light .section-drop__hint,
-.newtab--light .section-add {
-  color: var(--t1);
-  text-shadow: 0 0 4px rgba(255, 255, 255, .55);
-}
-.newtab--light .section-heading__input {
-  background: rgba(255, 255, 255, .5);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
-}
-
-/* A section with nothing in it still has to be droppable, and the drag only aims at cells that
-   were measured — so this placeholder carries the marker's own id and becomes an ordinary target.
-   It is a soft inset ring rather than a dashed outline: every other empty-ish surface here (the
-   Add tile, the glass rims) is drawn with an inset highlight, and a dashed border would be the
-   only stroke of its kind on the page. */
-.section-drop { cursor: default; }
-.section-drop__icon {
-  filter: none;
-  background: rgba(255, 255, 255, .09);
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .3);
-  transition: background var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
-}
-.section-drop__icon::after { box-shadow: none; }
-.section-drop--armed .section-drop__icon {
-  background: rgba(255, 255, 255, .2);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85);
-}
-.section-drop__hint {
-  padding-top: var(--label-gap);
-  color: #fff;
-  font-size: var(--label-size);
-  line-height: 20px;
-  opacity: .62;
-  text-shadow: var(--label-shadow);
-}
-
-/* Nearly invisible until pointed at. Most people never divide the grid and should not be paying
-   a lit control for it; it still has to be findable, which is why it is here and not behind a
-   gesture only someone already looking for it would try. */
-.section-add {
-  grid-column: 1 / -1;
-  justify-self: start;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  /* The 13px cancels the button's own left padding, so the "+" lands on the same rail as the
-     icons and the section headings rather than 13px inside it; the pill just overhangs it. */
-  margin: 22px 0 2px calc(var(--cell-pad-x) - 13px);
-  padding: 6px 13px;
-  border: 0;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 13px;
-  font-family: inherit;
-  background: transparent;
-  cursor: pointer;
-  opacity: .34;
-  text-shadow: var(--label-shadow);
-  transition: opacity var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
-}
-.section-add:hover,
-.section-add:focus-visible {
-  opacity: 1;
-  background: rgba(255, 255, 255, .14);
-  outline: none;
-}
-
 .shortcut {
   /* Flex column, not block: a <button> vertically centres its own content, so the label-less Add
      tile sat half a row lower than every captioned tile beside it. Laying both out the same way
@@ -948,6 +780,309 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 @keyframes site-access-in {
   from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+
+/* ---------- section headings ---------- */
+
+/* Deliberately AFTER the tile rules, not before them. Several rules in here override
+   .shortcut__icon — the collapsed heading's drop target and the empty section's cell both
+   borrow that class so measureGrid can find them — and a single class beats nothing, so
+   whichever of the two is written later wins. Written first, every one of those overrides
+   silently lost: the drop target came back to 60px of in-flow width (indenting the title it
+   sat beside) and wore the tile bevel, drawing a rounded box around nothing.
+
+/* The grid stays ONE grid; a heading is a full-width row inside it. That is what lets everything
+   else stand still: measureGrid still returns one flat list of cells, planDrop still picks the
+   nearest icon centre straight across a heading, and dragging a link from the last row of one
+   section into the first row of the next is an ordinary reorder with no new code behind it. One
+   grid per section would also have let each one resolve its own auto-fill column count, so two
+   sections could disagree about where column 1 is — on a width that fits 7.5 cells they would
+   still agree, but a section holding a single tile would not stretch the same way. */
+.section-heading {
+  position: relative;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  /* Aligned to the icon's left edge, not the cell's. The cell carries 30px of horizontal padding,
+     so a heading flush with the track would hang 30px to the left of every icon beneath it.
+     Vertical space is asymmetric on purpose: row-gap already puts 34px on both sides, and the
+     padding adds to the top only, so a heading ends up roughly twice as far from the section
+     above as from the tiles it names — otherwise it reads as belonging to the wrong one. */
+  padding: 30px var(--cell-pad-x) 0;
+}
+/* Nothing above it to be spaced away from. */
+.section-heading:first-child { padding-top: 0; }
+
+/* Rename, collapse, delete and move all hang off the heading, and all of them are visible.
+   The first version had rename on a click and delete on right-click only, which is the shape
+   nobody finds: right-click is the power-user path everywhere it appears, never the only one.
+   Notion, Steam and Figma all put a menu button beside the group title on hover; Windows 10's
+   Start groups put a drag grip in the same place. Both are here, and both also answer to
+   keyboard focus so the whole feature is reachable without a pointer. */
+.section-heading__caret,
+.section-heading__menu,
+.section-heading__grip {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
+  transition: opacity var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
+}
+.section-heading__grip { cursor: grab; }
+.section-heading__grip:active { cursor: grabbing; }
+.section-heading:hover .section-heading__caret,
+.section-heading:hover .section-heading__menu,
+.section-heading:hover .section-heading__grip,
+.section-heading__caret:focus-visible,
+.section-heading__menu:focus-visible,
+.section-heading__grip:focus-visible { opacity: .8; outline: none; }
+.section-heading__caret:hover,
+.section-heading__menu:hover,
+.section-heading__grip:hover { opacity: 1; background: rgba(255, 255, 255, .18); }
+/* Collapsed is the one state that has to be legible without hovering: a section with its tiles
+   gone and no visible marker of why is just a hole in the grid. */
+.section-heading--collapsed .section-heading__caret { opacity: .8; }
+.section-heading--collapsed .section-heading__caret svg { transform: rotate(-90deg); }
+.section-heading__caret svg { transition: transform var(--dur-2) var(--ease-out); }
+/* The caret leads the title, so it sits in the margin rather than pushing the text off the
+   rail every other heading and tile is aligned to. */
+.section-heading__caret { margin-left: -26px; }
+
+.section-heading__count {
+  margin-left: 2px;
+  color: #fff;
+  font-size: 13px;
+  opacity: .62;
+  text-shadow: var(--label-shadow);
+}
+.section-heading__count::before { content: "\00b7\00a0"; }
+
+/* Collapsed sections have no tiles on screen, so the heading itself becomes what a drag aims
+   at — a tile-sized box on the same rail, drawn only while it is being aimed at. */
+.section-heading__target {
+  position: absolute;
+  left: var(--cell-pad-x);
+  width: var(--icon-size);
+  height: var(--icon-size);
+  filter: none;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+.section-heading__target::after { box-shadow: none; }
+.section-heading--armed .section-heading__target {
+  background: rgba(255, 255, 255, .2);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85);
+}
+.section-heading--dragging { opacity: .3; }
+
+/* The seam a dragged section will land on. Absolutely positioned in a row that is sometimes
+   zero pixels tall, and never in the flow: the grid must not move while a drag is in flight,
+   which is the invariant the whole drag system is built on. */
+.section-seam {
+  position: absolute;
+  top: 12px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 0 8px rgba(0, 0, 0, .45);
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.section-heading:first-child .section-seam { top: -18px; }
+.section-seam[data-armed] { opacity: 1; }
+
+/* A heading whose name was cleared keeps the break and gives back the line: the row is laid out
+   at zero height, so the 34px row-gaps either side of it simply meet and the grid reads as
+   divided rather than captioned. The way back is an overlay that occupies no layout at all —
+   position: absolute in a 0px row — so an unnamed section costs exactly nothing until pointed at.
+   That is also why the row keeps `position: relative` and its padding is stripped rather than
+   the element being dropped entirely: with no element there is nothing to hover, and no way to
+   ever give the section a name again. */
+.section-heading--compact {
+  height: 0;
+  padding: 0;
+}
+.section-heading--compact .section-seam { top: -1px; }
+.section-heading__float {
+  position: absolute;
+  top: -14px;
+  left: calc(var(--cell-pad-x) - 9px);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.section-heading--compact .section-heading__caret { margin-left: 0; }
+.section-heading__add {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 22px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, .14);
+  cursor: pointer;
+  opacity: 0;
+  text-shadow: var(--label-shadow);
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.section-heading--compact:hover .section-heading__add,
+.section-heading__add:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.section-heading__name,
+.section-heading__input {
+  max-width: 100%;
+  color: #fff;
+  /* A step above the 14px captions, and the step has to be visible from across the page or the
+     heading reads as one more label that happens to be bold. Size does most of that work here;
+     weight alone at caption size did not separate them. */
+  font-size: 17px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 24px;
+  letter-spacing: .01em;
+  text-shadow: var(--label-shadow);
+}
+.section-heading__name {
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: text;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.section-heading__name:hover { opacity: .72; }
+/* Negative inline margin so the text does not shift sideways when the field appears around it:
+   the pill's own padding would otherwise push the first character 8px to the right at the exact
+   moment the eye is on it. */
+.section-heading__input {
+  min-width: 140px;
+  margin-inline: -9px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42);
+  outline: none;
+}
+.newtab--light .section-heading__name,
+.newtab--light .section-heading__input,
+.newtab--light .section-heading__add,
+.newtab--light .section-heading__count,
+.newtab--light .section-heading__caret,
+.newtab--light .section-heading__menu,
+.newtab--light .section-heading__grip,
+.newtab--light .section-drop__hint,
+.newtab--light .section-add {
+  color: var(--t1);
+  text-shadow: 0 0 4px rgba(255, 255, 255, .55);
+}
+.newtab--light .section-heading__input {
+  background: rgba(255, 255, 255, .5);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
+
+/* A section with nothing in it still has to be droppable, and the drag only aims at cells that
+   were measured — so this placeholder carries the marker's own id and becomes an ordinary target.
+   It is a soft inset ring rather than a dashed outline: every other empty-ish surface here (the
+   Add tile, the glass rims) is drawn with an inset highlight, and a dashed border would be the
+   only stroke of its kind on the page. */
+/* Draws nothing at rest. It shipped as a visible outlined square, which sat next to the "+"
+   tile looking almost exactly like it while meaning something completely different — Notion and
+   Steam both leave an empty group as a heading over blank space, and the ring only has to exist
+   at the moment it is being aimed at. The cell still occupies its 120px, because that is what
+   reserves the spot the tile is about to land in. */
+.section-drop { cursor: default; }
+.section-drop__icon {
+  filter: none;
+  background: transparent;
+  box-shadow: none;
+  transition: background var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.section-drop__icon::after { box-shadow: none; }
+.section-drop--armed .section-drop__icon {
+  background: rgba(255, 255, 255, .2);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85);
+}
+.section-drop__hint {
+  padding-top: var(--label-gap);
+  color: #fff;
+  font-size: var(--label-size);
+  line-height: 20px;
+  opacity: .62;
+  text-shadow: var(--label-shadow);
+}
+
+/* Nearly invisible until pointed at. Most people never divide the grid and should not be paying
+   a lit control for it; it still has to be findable, which is why it is here and not behind a
+   gesture only someone already looking for it would try. */
+.section-add {
+  position: relative;
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  /* The 13px cancels the button's own left padding, so the "+" lands on the same rail as the
+     icons and the section headings rather than 13px inside it; the pill just overhangs it. */
+  margin: 22px 0 2px calc(var(--cell-pad-x) - 13px);
+  padding: 6px 13px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  background: transparent;
+  cursor: pointer;
+  opacity: .34;
+  text-shadow: var(--label-shadow);
+  transition: opacity var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
+}
+.section-add .section-seam { top: -12px; left: calc(13px - var(--cell-pad-x)); }
+.section-add:hover,
+.section-add:focus-visible {
+  opacity: 1;
+  background: rgba(255, 255, 255, .14);
+  outline: none;
+}
+
+
+/* What a dragged section looks like under the cursor. Not a tile: a section has no artwork and
+   no URL, and rendering it through the tile ghost drew a monogram square captioned with the
+   section's name — a link that does not exist. */
+.section-ghost {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 8px;
+  color: var(--t1);
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+  cursor: grabbing;
+  white-space: nowrap;
 }
 
 

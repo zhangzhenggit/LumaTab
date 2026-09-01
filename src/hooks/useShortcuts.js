@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { createId, normalizeUrl } from "../lib/icons";
 import { collapseThinFolders } from "../lib/shortcuts-tree";
-import { appendSection, countLinks, eachLink, NEW_SECTION_NAME, removeSection, renameSection } from "../lib/sections";
-import { applyPlan, DROP_MERGE, DROP_REORDER, planDrop, pointerAt, samePlan } from "../lib/drag-plan";
+import { appendSection, countLinks, eachLink, firstMovableSeam, isCollapsed, isSection, moveSection, NEW_SECTION_NAME, removeSection, renameSection, sectionsOf, toggleCollapse } from "../lib/sections";
+import { applyPlan, DROP_MERGE, DROP_REORDER, DROP_SECTION, planDrop, planSectionMove, pointerAt, samePlan } from "../lib/drag-plan";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 import { useTileFlip } from "./useTileFlip";
@@ -23,6 +23,7 @@ export function useShortcuts(notify) {
   // not move during a drag, and re-measuring would hand the decision back a rect that the
   // decision itself had changed — the merge ring scales its target up by 18%.
   const gridRef = useRef([]);
+  const seamsRef = useRef([]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   function measureGrid() {
@@ -38,12 +39,34 @@ export function useShortcuts(notify) {
       }));
   }
 
+  // Every heading marks the top of its own block, and one more seam sits under the last row so a
+  // section can be moved to the end. Measured at drag start like everything else — the grid does
+  // not move while a drag is in flight, and this is part of the same snapshot.
+  function measureSeams(blockCount) {
+    const grid = document.querySelector(".shortcut-grid");
+    if (!grid) return [];
+    const seams = Array.from(grid.querySelectorAll("[data-seam]")).map((node) => ({
+      block: Number(node.dataset.seam),
+      y: node.getBoundingClientRect().top,
+    }));
+    const cells = grid.querySelectorAll("[data-tile-id]");
+    const last = cells[cells.length - 1];
+    if (last) seams.push({ block: blockCount, y: last.getBoundingClientRect().bottom });
+    return seams;
+  }
+
   function planFor(event) {
     const sourceId = String(event.active.id);
-    return planDrop(pointerAt(event.activatorEvent, event.delta), gridRef.current, {
-      sourceId,
-      sourceType: shortcutsRef.current.find((item) => item.id === sourceId)?.type ?? "link",
-    });
+    const source = shortcutsRef.current.find((item) => item.id === sourceId);
+    const point = pointerAt(event.activatorEvent, event.delta);
+    // A heading drags its whole block, so it answers a different question from the same pointer
+    // — seams between blocks, not gaps between tiles. See planSectionMove.
+    if (isSection(source)) {
+      return planSectionMove(point, seamsRef.current, {
+        firstSeam: firstMovableSeam(sectionsOf(shortcutsRef.current)),
+      });
+    }
+    return planDrop(point, gridRef.current, { sourceId, sourceType: source?.type ?? "link" });
   }
 
 
@@ -115,6 +138,7 @@ export function useShortcuts(notify) {
   // being picked up — and that one is excluded from the targets anyway.
   function dragStart(event) {
     gridRef.current = measureGrid();
+    seamsRef.current = measureSeams(sectionsOf(shortcutsRef.current).length);
     // The sensor only fires this after 6px of travel, so there is already a real pointer position
     // to answer from. Waiting for the next onDragMove instead left the first frame of every drag
     // with no ring and no caret, which reads as the grid ignoring you.
@@ -141,8 +165,19 @@ export function useShortcuts(notify) {
     // know the id and a merge onto a plain link mints a brand new folder. React also invokes
     // updaters twice under StrictMode, and an id that differs between the two runs is a bug
     // waiting to happen.
+    if (plan?.kind === DROP_SECTION) {
+      setShortcuts((current) => moveSection(current, sourceId, plan.atSeam));
+      resetDragState();
+      return;
+    }
+    // Landing a tile somewhere the user cannot see it is the one outcome a drop must never have,
+    // so a link released on a collapsed heading opens that section on the way in.
+    const target = shortcutsRef.current.find((item) => item.id === plan?.targetId);
     const folderId = createId("folder");
-    setShortcuts((current) => applyPlan(current, plan, { sourceId, makeFolderId: () => folderId }));
+    setShortcuts((current) => {
+      const next = applyPlan(current, plan, { sourceId, makeFolderId: () => folderId });
+      return isCollapsed(target) ? toggleCollapse(next, target.id) : next;
+    });
     if (plan?.kind === DROP_MERGE) {
       // The dragged tile is gone — swallowed by the target — so the feedback has to come from
       // whatever swallowed it. Merging onto a folder lands on that folder; merging onto a link
@@ -266,6 +301,13 @@ export function useShortcuts(notify) {
     return id;
   }
 
+  // Collapsing lives on the marker itself, so it survives a reload the way every other thing
+  // about a section does. A link dropped onto a collapsed heading opens it: landing a tile
+  // somewhere the user cannot see it is the one outcome a drop must never have.
+  function toggleSectionCollapse(id) {
+    setShortcuts((current) => toggleCollapse(current, id));
+  }
+
   function renameSectionTo(id, name) {
     setShortcuts((current) => renameSection(current, id, name));
   }
@@ -296,7 +338,8 @@ export function useShortcuts(notify) {
     dropIndicator: dropPlan?.kind === DROP_REORDER ? dropPlan : null,
     dragStart, dragMove, dragEnd, resetDragState,
     addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
-    addSection, renameSectionTo, deleteSection,
+    addSection, renameSectionTo, deleteSection, toggleSectionCollapse,
+    sectionPlan: dropPlan?.kind === DROP_SECTION ? dropPlan : null,
     replaceAll, mergeIn,
   };
 }

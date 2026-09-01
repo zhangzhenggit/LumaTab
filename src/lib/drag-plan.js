@@ -20,6 +20,7 @@
 //     └──────────────┘
 export const DROP_MERGE = "merge";
 export const DROP_REORDER = "reorder";
+export const DROP_SECTION = "section";
 
 // The artwork is 60px inside a 120px cell. Growing the merge zone by 10px on every side makes it
 // 80px — comfortably bigger than the pointer's own wobble — and still leaves a 40px-wide channel
@@ -86,9 +87,26 @@ export function planDrop(point, cells, { sourceId, sourceType }) {
   return { kind: DROP_REORDER, targetId: hit.id, side: point.x < centre(hit).x ? "before" : "after" };
 }
 
+// Dragging a heading moves the whole block under it, so the gaps between tiles mean nothing —
+// the only landing places are the seams between blocks. That collapses the whole question to a
+// one-dimensional nearest-seam search down the page, and it is why a section drag does not go
+// through planDrop at all: the same pointer position answers a completely different question.
+//
+// `seams` is [{ block, y }], measured from the headings themselves plus one past the last row.
+export function planSectionMove(point, seams, { firstSeam = 0 } = {}) {
+  if (!point || !seams?.length) return null;
+  const reachable = seams.filter((seam) => seam.block >= firstSeam);
+  if (!reachable.length) return null;
+  const nearest = reachable.reduce((best, seam) => (
+    Math.abs(point.y - seam.y) < Math.abs(point.y - best.y) ? seam : best
+  ));
+  return { kind: DROP_SECTION, atSeam: nearest.block };
+}
+
 export function samePlan(a, b) {
   if (a === b) return true;
-  return Boolean(a && b) && a.kind === b.kind && a.targetId === b.targetId && a.side === b.side;
+  return Boolean(a && b) && a.kind === b.kind && a.targetId === b.targetId
+    && a.side === b.side && a.atSeam === b.atSeam;
 }
 
 // Applies a completed drag. Kept out of the component so the outcome of every gesture can be

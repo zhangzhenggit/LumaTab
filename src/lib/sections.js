@@ -85,3 +85,38 @@ export function renameSection(items = [], id, name) {
 export function removeSection(items = [], id) {
   return items.filter((item) => !(isSection(item) && item.id === id));
 }
+
+export function isCollapsed(section) {
+  return isSection(section) && section.collapsed === true;
+}
+
+export function toggleCollapse(items = [], id) {
+  return items.map((item) => (isSection(item) && item.id === id
+    ? { ...item, collapsed: !item.collapsed }
+    : item));
+}
+
+// A seam is the line between two blocks, numbered by the block that starts there — so seam k
+// means "immediately above block k", and one extra seam past the end means "at the bottom".
+//
+// Seam 0 is only real when block 0 has a marker of its own. The leading block usually does not:
+// it is whatever sits above the first heading, and dropping a section above it would put those
+// tiles *under* the moved section's heading, quietly re-filing links the drag never touched.
+export function firstMovableSeam(blocks = []) {
+  return blocks[0]?.marker ? 0 : 1;
+}
+
+export function moveSection(items = [], id, atSeam) {
+  const blocks = sectionsOf(items);
+  const from = blocks.findIndex((block) => block.marker?.id === id);
+  if (from < 0 || atSeam < firstMovableSeam(blocks)) return items;
+  // Either seam of its own block is where it already is.
+  if (atSeam === from || atSeam === from + 1) return items;
+
+  const flat = blocks.map((block) => (block.marker
+    ? [block.marker, ...block.tiles.map((tile) => tile.item)]
+    : block.tiles.map((tile) => tile.item)));
+  const [moved] = flat.splice(from, 1);
+  flat.splice(atSeam > from ? atSeam - 1 : atSeam, 0, moved);
+  return flat.flat();
+}

@@ -44,7 +44,7 @@ function TileLabel({ name }) {
 // order, and that preview was the whole problem: it moved the tile the pointer was aiming at.
 // The tile therefore carries no transform at all — it sits still for the entire drag, and the
 // only feedback is the ring on a merge target or the caret in the gap it would slot into.
-export function ShortcutTile({ item, index = 0, onActivate, onContextMenu, dropMode, dropEdge, landed }) {
+export function ShortcutTile({ item, index = 0, muted, onActivate, onContextMenu, dropMode, dropEdge, landed }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: item.id });
 
   function keyDown(event) {
@@ -57,7 +57,9 @@ export function ShortcutTile({ item, index = 0, onActivate, onContextMenu, dropM
   return (
     <div
       ref={setNodeRef}
-      className={`shortcut ${isDragging ? "shortcut--dragging" : ""} ${dropMode ? "shortcut--merge-ready" : ""} ${landed ? "shortcut--landed" : ""}`}
+      // `muted` is a tile inside the section whose heading is being dragged: the block moves
+      // as one, so the whole block has to read as picked up, not just the line above it.
+      className={`shortcut ${isDragging || muted ? "shortcut--dragging" : ""} ${dropMode ? "shortcut--merge-ready" : ""} ${landed ? "shortcut--landed" : ""}`}
       // Its place in the entrance queue; see .shortcut-grid--ready .shortcut in styles.css. The
       // grid's column count comes from auto-fill, so this is the only ordering either side knows.
       style={{ "--i": index }}

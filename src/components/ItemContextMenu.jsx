@@ -1,9 +1,10 @@
-import { ArrowUp, FolderOpen, PencilSimple, Trash } from "@phosphor-icons/react";
+import { ArrowUp, ArrowsInLineVertical, ArrowsOutLineVertical, FolderOpen, PencilSimple, Trash } from "@phosphor-icons/react";
 
-export function ItemContextMenu({ menu, item, onClose, onEdit, onMoveOut, onDissolve, onDelete }) {
+export function ItemContextMenu({ menu, item, onClose, onEdit, onToggleCollapse, onMoveOut, onDissolve, onDelete }) {
   if (!menu || !item) return null;
 
   const isSection = item.type === "section";
+  const collapsed = isSection && item.collapsed === true;
 
   const left = Math.min(menu.x, window.innerWidth - 196);
   const top = Math.min(menu.y, window.innerHeight - 210);
@@ -12,8 +13,14 @@ export function ItemContextMenu({ menu, item, onClose, onEdit, onMoveOut, onDiss
     <div className="context-layer" role="presentation" onMouseDown={onClose} onContextMenu={(event) => event.preventDefault()}>
       <div className="context-menu" role="menu" style={{ left, top }} onMouseDown={(event) => event.stopPropagation()}>
         <button type="button" role="menuitem" onClick={onEdit}>
-          <PencilSimple size={18} /><span>{isSection ? "重命名分区" : item.type === "folder" ? "重命名分组" : "编辑快捷链接"}</span>
+          <PencilSimple size={18} /><span>{isSection ? (item.name ? "重命名分区" : "命名分区") : item.type === "folder" ? "重命名分组" : "编辑快捷链接"}</span>
         </button>
+        {isSection && (
+          <button type="button" role="menuitem" onClick={onToggleCollapse}>
+            {collapsed ? <ArrowsOutLineVertical size={18} /> : <ArrowsInLineVertical size={18} />}
+            <span>{collapsed ? "展开分区" : "折叠分区"}</span>
+          </button>
+        )}
         {menu.folderId && (
           <button type="button" role="menuitem" onClick={onMoveOut}>
             <ArrowUp size={18} /><span>移出分组</span>

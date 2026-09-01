@@ -16,7 +16,7 @@ import { useWallpaperDrift } from "./hooks/useWallpaperDrift";
 import { Aurora } from "./components/Aurora";
 import { needsDarkInk, wallpaperFilterStyle } from "./lib/background-cache-keys";
 import { findItem } from "./lib/shortcuts-tree";
-import { isSection, sectionsOf } from "./lib/sections";
+import { isCollapsed, isSection, sectionsOf } from "./lib/sections";
 import { SectionDropCell, SectionHeading } from "./components/SectionHeading";
 
 export function App({ initialWallpaper = null }) {
@@ -24,7 +24,7 @@ export function App({ initialWallpaper = null }) {
   const wallpaperApi = useBingWallpaper(notify, initialWallpaper);
   const { wallpaper, backgroundMeta, tuning, photoLuminance } = wallpaperApi;
   const shortcutsApi = useShortcuts(notify);
-  const { shortcuts, ready, sensors, activeId, landedId, mergeReadyId, dropIndicator } = shortcutsApi;
+  const { shortcuts, ready, sensors, activeId, landedId, mergeReadyId, dropIndicator, sectionPlan } = shortcutsApi;
   const siteAccess = useSiteAccess(shortcuts, ready);
   // Drives `scale` and `translate` on the wallpaper layer from its own clamped clock, so a tab
   // coming back from hidden resumes instead of jumping. The seed identifies the picture, not the
@@ -42,7 +42,11 @@ export function App({ initialWallpaper = null }) {
   // The heading currently being renamed in place, by marker id.
   const [editingSection, setEditingSection] = useState(null);
 
-  const activeItem = shortcuts.find((item) => item.id === activeId) ?? null;
+  const active = shortcuts.find((item) => item.id === activeId) ?? null;
+  // A section has no artwork and no URL, so handing it to ShortcutGhost drew a monogram tile for
+  // it — a purple square captioned with the section's name, which is a link that does not exist.
+  const activeItem = isSection(active) ? null : active;
+  const activeSection = isSection(active) ? active : null;
   // The panel remembers where it was opened from so it can grow out of that tile; the folder
   // itself is re-read from state each render so edits inside it stay live.
   const folderItem = openFolder
@@ -84,6 +88,12 @@ export function App({ initialWallpaper = null }) {
     event.preventDefault();
     event.stopPropagation();
     setContextMenu({ x: event.clientX, y: event.clientY, itemId: item.id, folderId });
+  }
+
+  function toggleMenuCollapse() {
+    if (!contextMenu || !isSection(menuItem)) return;
+    shortcutsApi.toggleSectionCollapse(contextMenu.itemId);
+    setContextMenu(null);
   }
 
   function startEditing() {
@@ -175,7 +185,11 @@ export function App({ initialWallpaper = null }) {
                   <SectionHeading
                     section={block.marker}
                     index={block.markerIndex}
+                    blockIndex={blockIndex}
+                    count={block.tiles.length}
                     editing={editingSection === block.marker.id}
+                    seamArmed={sectionPlan?.atSeam === blockIndex}
+                    dropArmed={dropIndicator?.targetId === block.marker.id && isCollapsed(block.marker)}
                     onStartEdit={() => setEditingSection(block.marker.id)}
                     onCommit={(name) => {
                       shortcutsApi.renameSectionTo(block.marker.id, name);
@@ -183,13 +197,15 @@ export function App({ initialWallpaper = null }) {
                     }}
                     onCancel={() => setEditingSection(null)}
                     onContextMenu={(event) => openItemMenu(event, block.marker)}
+                    onToggleCollapse={() => shortcutsApi.toggleSectionCollapse(block.marker.id)}
                   />
                 )}
-                {block.tiles.map(({ item, index }) => (
+                {!isCollapsed(block.marker) && block.tiles.map(({ item, index }) => (
                   <ShortcutTile
                     key={item.id}
                     item={item}
                     index={index}
+                    muted={activeId === block.marker?.id}
                     onActivate={activate}
                     onContextMenu={openItemMenu}
                     dropMode={mergeReadyId === item.id ? (item.type === "folder" ? "folder" : "merge") : null}
@@ -197,7 +213,7 @@ export function App({ initialWallpaper = null }) {
                     landed={landedId === item.id}
                   />
                 ))}
-                {block.marker && block.tiles.length === 0 && (
+                {block.marker && !isCollapsed(block.marker) && block.tiles.length === 0 && (
                   <SectionDropCell section={block.marker} index={block.markerIndex + 1} armed={dropIndicator?.targetId === block.marker.id} />
                 )}
                 {/* One "+", at the very end of the grid, so a new link joins whichever section is
@@ -214,13 +230,21 @@ export function App({ initialWallpaper = null }) {
                     still has to be findable, which a gesture-only entry point would not be. */}
                 {blockIndex === blocks.length - 1 && (
                   <button className="section-add" type="button" onClick={createSection}>
+                    {/* Also the anchor for the last seam - a section dropped past everything
+                        lands here, and this row is the only thing always at the bottom. */}
+                    <span className="section-seam" aria-hidden="true" data-armed={sectionPlan?.atSeam === blocks.length ? "" : undefined} />
                     <Plus size={13} weight="bold" aria-hidden="true" /><span>新建分区</span>
                   </button>
                 )}
               </Fragment>
             ))}
           </section>
-          <DragOverlay dropAnimation={null}>{activeItem ? <ShortcutGhost item={activeItem} /> : null}</DragOverlay>
+          <DragOverlay dropAnimation={null}>
+            {activeItem && <ShortcutGhost item={activeItem} />}
+            {activeSection && (
+              <span className="section-ghost">{activeSection.name || "未命名分区"}</span>
+            )}
+          </DragOverlay>
         </DndContext>
       </div>
       {backgroundMeta?.copyright && <a className="photo-credit" href={backgroundMeta.copyrightLink} title={backgroundMeta.copyright}>{backgroundMeta.title || "Bing 每日图"}</a>}
@@ -239,6 +263,7 @@ export function App({ initialWallpaper = null }) {
         item={menuItem}
         onClose={() => setContextMenu(null)}
         onEdit={startEditing}
+        onToggleCollapse={toggleMenuCollapse}
         onMoveOut={moveMenuItemOut}
         onDissolve={dissolveMenuFolder}
         onDelete={deleteMenuItem}

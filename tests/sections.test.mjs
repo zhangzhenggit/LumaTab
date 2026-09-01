@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  appendSection, countLinks, eachLink, isNamed, isSection, NEW_SECTION_NAME,
-  removeSection, renameSection, sectionsOf,
+  appendSection, countLinks, eachLink, firstMovableSeam, isCollapsed, isNamed, isSection,
+  moveSection, NEW_SECTION_NAME, removeSection, renameSection, sectionsOf, toggleCollapse,
 } from "../src/lib/sections.js";
 import { applyPlan, DROP_MERGE, DROP_REORDER, planDrop } from "../src/lib/drag-plan.js";
 import { validateShortcutPayload } from "../src/lib/shortcuts-file.js";
@@ -199,4 +199,93 @@ test("sections are rows in the one grid, not grids of their own", async () => {
   // Aligned to the icon's left edge, not the cell's — the cell carries 30px of padding, so a
   // heading flush with the track hangs 30px left of everything it names.
   assert.match(rule(".section-heading {"), /padding:\s*30px var\(--cell-pad-x\) 0/);
+});
+
+// Dragging a heading moves the block under it, so the only landing places are the seams between
+// blocks. Seam k means "immediately above block k", and one seam past the end means "at the
+// bottom" — which is why the search is one-dimensional and does not go through planDrop at all.
+test("a section drag lands on seams between blocks, not gaps between tiles", async () => {
+  const { DROP_SECTION, planSectionMove } = await import("../src/lib/drag-plan.js");
+  const seams = [{ block: 0, y: 100 }, { block: 1, y: 400 }, { block: 2, y: 700 }];
+
+  assert.deepEqual(planSectionMove({ x: 0, y: 380 }, seams), { kind: DROP_SECTION, atSeam: 1 });
+  assert.deepEqual(planSectionMove({ x: 0, y: 690 }, seams), { kind: DROP_SECTION, atSeam: 2 });
+  // Past the bottom of everything still resolves, the same way a tile released in empty space does.
+  assert.equal(planSectionMove({ x: 0, y: 9000 }, seams).atSeam, 2);
+  // Seam 0 is not always reachable; when it is not, the nearest one above it is 1.
+  assert.equal(planSectionMove({ x: 0, y: 0 }, seams, { firstSeam: 1 }).atSeam, 1);
+  assert.equal(planSectionMove(null, seams), null);
+  assert.equal(planSectionMove({ x: 0, y: 0 }, []), null);
+});
+
+// The leading block usually has no marker of its own — it is whatever sits above the first
+// heading. Dropping a section above it would put those tiles *under* the moved section's
+// heading, quietly re-filing links the drag never touched.
+test("a section cannot be dropped above an unmarked leading block", () => {
+  const items = [link("a"), heading("s1"), link("b"), link("c"), heading("s2"), link("d")];
+  assert.equal(firstMovableSeam(sectionsOf(items)), 1);
+  assert.equal(moveSection(items, "s1", 0), items, "the lead block's tiles were about to be re-filed");
+
+  // With a heading at the very top, seam 0 is real.
+  const titledFirst = [heading("s1"), link("a"), heading("s2"), link("b")];
+  assert.equal(firstMovableSeam(sectionsOf(titledFirst)), 0);
+  assert.deepEqual(moveSection(titledFirst, "s2", 0).map((i) => i.id), ["s2", "b", "s1", "a"]);
+});
+
+test("moving a section carries every tile under it, and nothing else", () => {
+  const items = [link("a"), heading("s1"), link("b"), link("c"), heading("s2"), link("d")];
+
+  assert.deepEqual(moveSection(items, "s2", 1).map((i) => i.id), ["a", "s2", "d", "s1", "b", "c"]);
+  // Seam 3 is past the end.
+  assert.deepEqual(moveSection(items, "s1", 3).map((i) => i.id), ["a", "s2", "d", "s1", "b", "c"]);
+  // Either of its own seams is where it already is, and the original array comes back so the
+  // gesture does not count as an edit.
+  assert.equal(moveSection(items, "s1", 1), items);
+  assert.equal(moveSection(items, "s1", 2), items);
+  assert.equal(moveSection(items, "nope", 1), items);
+
+  for (const seam of [0, 1, 2, 3]) {
+    assert.equal(countLinks(moveSection(items, "s2", seam)), 4, `seam ${seam} lost a link`);
+  }
+});
+
+test("collapsing rides on the marker, so it survives a reload", () => {
+  const items = [heading("s", "工作"), link("a")];
+  assert.ok(!isCollapsed(items[0]));
+  const closed = toggleCollapse(items, "s");
+  assert.ok(isCollapsed(closed[0]));
+  assert.equal(closed[0].name, "工作", "collapsing rewrote something else about the section");
+  assert.ok(!isCollapsed(toggleCollapse(closed, "s")[0]));
+  // A link is not a section and cannot be collapsed.
+  assert.deepEqual(toggleCollapse(items, "a")[1], link("a"));
+});
+
+// Two of the section rules borrow `.shortcut__icon` so that measureGrid can find them: the
+// collapsed heading's drop target, and the empty section's placeholder cell. Both then have to
+// undo most of what that class does. One class beats nothing, so between two single-class rules
+// the later one wins — and written before the tile rules, every one of those overrides silently
+// lost. The visible result was a collapsed heading whose title sat 60px to the right of every
+// other heading, wearing a tile bevel around nothing.
+test("the rules that override a tile's icon are written after it", async () => {
+  const css = await (await import("node:fs/promises"))
+    .readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  const at = (selector) => {
+    const index = css.indexOf(String.fromCharCode(10) + selector);
+    assert.ok(index >= 0, `${selector} is gone`);
+    return index;
+  };
+
+  const icon = at(".shortcut__icon {");
+  for (const borrower of [".section-heading__target {", ".section-drop__icon {"]) {
+    assert.ok(at(borrower) > icon,
+      `${borrower} is written before .shortcut__icon, so its overrides lose on equal specificity`);
+  }
+
+  // The seam is what tells you where a dragged section will land, and it must never be in the
+  // flow: the grid does not move while a drag is in flight, and that is the invariant every
+  // other part of the drag system is built on.
+  const seam = css.slice(at(".section-seam {"));
+  assert.match(seam.slice(0, seam.indexOf("}")), /position:\s*absolute/,
+    "the drop seam takes up layout, so arming it would move the grid mid-drag");
 });
