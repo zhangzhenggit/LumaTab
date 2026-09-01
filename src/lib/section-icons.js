@@ -11,6 +11,13 @@
 // have shipped.
 export const SECTION_ICON_COLUMNS = 8;
 
+// The same eleven fills the generated letter tiles use, so a coloured heading is drawn from the
+// exact palette as the grid under it rather than introducing a second one. A section with no
+// colour keeps the plain white glyph, which is what every heading looked like before this
+// existed — colour is opt-in, and the default page does not change.
+import { ACCENTS } from "./icons.js";
+export { ACCENTS as SECTION_ACCENTS } from "./icons.js";
+
 export const SECTION_ICON_GROUPS = [
   {
     label: "工作",
@@ -84,4 +91,21 @@ export function setSectionIcon(items = [], id, key) {
   const current = items.find((item) => item.type === "section" && item.id === id);
   if (!current || (current.glyph ?? null) === glyph) return items;
   return items.map((item) => (item === current ? { ...item, glyph } : item));
+}
+
+export function isSectionAccent(color) {
+  return typeof color === "string" && ACCENTS.includes(color);
+}
+
+export function normalizeSectionAccent(color) {
+  return isSectionAccent(color) ? color : null;
+}
+
+// Same field name links use, and deliberately: it is the same idea — this thing's colour — and
+// reusing it means one shape of data and one thing to remember about what survives storage.
+export function setSectionAccent(items = [], id, color) {
+  const accentColor = normalizeSectionAccent(color);
+  const current = items.find((item) => item.type === "section" && item.id === id);
+  if (!current || (current.accentColor ?? null) === accentColor) return items;
+  return items.map((item) => (item === current ? { ...item, accentColor } : item));
 }

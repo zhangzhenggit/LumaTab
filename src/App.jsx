@@ -297,10 +297,13 @@ export function App({ initialWallpaper = null }) {
       <SectionIconPicker
         picker={iconPicker}
         current={findItem(shortcuts, iconPicker)?.glyph ?? null}
-        onPick={(key) => {
-          shortcutsApi.setSectionIconTo(iconPicker.itemId, key);
-          setIconPicker(null);
-        }}
+        accent={findItem(shortcuts, iconPicker)?.accentColor ?? null}
+        // Deliberately does not close on a pick. Choosing a glyph and then a colour for it is
+        // one decision made in two clicks, and a panel that vanished after the first would have
+        // to be reopened to finish. It closes the way every popover here does: click away, or
+        // Escape.
+        onPick={(key) => shortcutsApi.setSectionIconTo(iconPicker.itemId, key)}
+        onPickAccent={(color) => shortcutsApi.setSectionAccentTo(iconPicker.itemId, color)}
         onClose={() => setIconPicker(null)}
       />
       <button className="settings-launcher" type="button" onClick={() => setSettingsOpen(true)} aria-label="设置">

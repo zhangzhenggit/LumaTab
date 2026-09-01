@@ -1,14 +1,26 @@
+import { useEffect } from "react";
 import { Prohibit } from "@phosphor-icons/react";
-import { SECTION_ICON_GROUPS } from "../lib/section-icons";
+import { SECTION_ACCENTS, SECTION_ICON_GROUPS } from "../lib/section-icons";
 import { SectionIcon } from "./SectionIcon";
 
 // Measured, not guessed: eight 34px columns with 2px gaps inside 8px of padding, six shelves
 // each carrying a label. They exist only to keep the panel on screen near an edge, so a couple
 // of pixels out costs nothing — fifty out means it opens half off the bottom.
 const PANEL_W = 302;
-const PANEL_H = 424;
+const PANEL_H = 476;
 
-export function SectionIconPicker({ picker, current, onPick, onClose }) {
+export function SectionIconPicker({ picker, current, accent, onPick, onPickAccent, onClose }) {
+  // It no longer closes when something is picked, so it needs the other way out that every
+  // dismissible surface here has. Registered before the early return, because hooks must be.
+  useEffect(() => {
+    if (!picker) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [picker, onClose]);
+
   if (!picker) return null;
   const left = Math.min(picker.x, window.innerWidth - PANEL_W - 12);
   const top = Math.min(picker.y, window.innerHeight - PANEL_H - 12);
@@ -52,6 +64,35 @@ export function SectionIconPicker({ picker, current, onPick, onClose }) {
             </div>
           </div>
         ))}
+        {/* Only once there is a glyph: a colour with nothing to put it behind changes nothing on
+            screen, and a control that visibly does nothing is worse than one that is not there. */}
+        {current && (
+          <div className="icon-picker__group">
+            <span className="icon-picker__label">颜色</span>
+            <div className="accent-grid accent-grid--picker">
+              {/* White is not a twelfth colour, it is the absence of the chip — and it happens to
+                  show exactly what you get, which is a white glyph on the photograph. */}
+              <button
+                type="button"
+                className={`accent-swatch accent-swatch--auto ${accent ? "" : "accent-swatch--on"}`}
+                aria-label="不使用颜色"
+                aria-pressed={!accent}
+                onClick={() => onPickAccent(null)}
+              />
+              {SECTION_ACCENTS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`accent-swatch ${accent === color ? "accent-swatch--on" : ""}`}
+                  style={{ background: color }}
+                  aria-label={color}
+                  aria-pressed={accent === color}
+                  onClick={() => onPickAccent(color)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

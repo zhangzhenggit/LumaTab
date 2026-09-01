@@ -94,7 +94,14 @@ export function SectionHeading({
         ><CaretDown size={13} weight="bold" /></button>
       )}
       {!compact && section.glyph && (
-        <span className="section-heading__icon"><SectionIcon name={section.glyph} /></span>
+        // Coloured, the glyph goes into a small squircle: a saturated shape has to bring its own
+        // background over an arbitrary photograph, and a chip in the tile's own corner curve is
+        // the material this product already speaks. Uncoloured, it stays a bare white glyph —
+        // which is what every heading was before colour existed, so the default page is unchanged.
+        <span
+          className={`section-heading__icon ${section.accentColor ? "section-heading__icon--chip" : ""}`}
+          style={section.accentColor ? { "--section-accent": section.accentColor } : undefined}
+        ><SectionIcon name={section.glyph} size={section.accentColor ? 13 : 17} /></span>
       )}
       {editing ? (
         <input

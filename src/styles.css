@@ -872,6 +872,34 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
 }
 .newtab--light .section-heading__icon { color: var(--t1); filter: none; }
+/* The coloured form. Same corner curve as every tile on the page, because this is the same
+   material one size down — a saturated shape needs to bring its own background over an arbitrary
+   photograph, and borrowing the squircle is what keeps it from reading as a foreign badge. The
+   rim is a simplified --tile-bevel: that constant is calibrated for 60px, and its 1px highlight
+   is proportionally three times heavier on a 22px square. */
+.section-heading__icon--chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  corner-shape: var(--icon-corner);
+  color: #fff;
+  background: var(--section-accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .32),
+    inset 0 0 0 .5px rgba(0, 0, 0, .1),
+    0 1px 3px rgba(0, 0, 0, .38);
+  filter: none;
+}
+.newtab--light .section-heading__icon--chip { color: #fff; }
+
+/* Tighter than the dialog's, which has a whole column to spend; this one lives in a 286px panel
+   and reads as a strip rather than a block of tiles. Written as a descendant selector on purpose:
+   `.accent-grid` is defined much further down in the settings drawer, and a single-class override
+   up here would lose to it on source order — which is exactly how it shipped wrapped onto two
+   rows of oversized swatches the first time. */
+.icon-picker .accent-grid { grid-template-columns: repeat(12, 1fr); gap: 4px; }
+.icon-picker .accent-swatch { border-radius: 5px; }
+.icon-picker .accent-swatch:hover { transform: translateY(-1px); }
 
 .section-heading__count {
   margin-left: 2px;

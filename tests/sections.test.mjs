@@ -378,3 +378,43 @@ test("every glyph the picker offers can actually be drawn", async () => {
     assert.ok(names.has(key), `${key} is offered by the picker but not imported`);
   }
 });
+
+// Colour is opt-in and comes from the palette the generated letter tiles already use, so a
+// coloured heading is drawn from the same eleven fills as the grid under it rather than
+// introducing a second palette nobody reconciled with the first.
+test("a section's colour comes from the tile palette, or is nothing at all", async () => {
+  const { SECTION_ACCENTS, setSectionAccent, isSectionAccent } = await import("../src/lib/section-icons.js");
+  const { ACCENTS } = await import("../src/lib/icons.js");
+  assert.deepEqual(SECTION_ACCENTS, ACCENTS, "the headings grew a palette of their own");
+
+  const items = [heading("s", "工作"), link("a")];
+  const painted = setSectionAccent(items, "s", ACCENTS[0]);
+  assert.equal(painted[0].accentColor, ACCENTS[0]);
+  assert.equal(painted[0].name, "工作", "colouring rewrote something else about the section");
+
+  // Anything off-palette is no colour rather than an error — same rule the glyph follows. Tested
+  // from the painted state, because clearing something already clear is a no-op that returns the
+  // original array untouched, and an untouched section has no such field at all.
+  assert.equal(setSectionAccent(painted, "s", "#123456")[0].accentColor, null);
+  assert.equal(setSectionAccent(painted, "s", null)[0].accentColor, null);
+  assert.equal(setSectionAccent(items, "s", "#123456"), items, "clearing a clear section rewrote storage");
+  assert.ok(isSectionAccent(ACCENTS[0]) && !isSectionAccent("red"));
+  assert.equal(setSectionAccent(painted, "s", ACCENTS[0]), painted, "a no-op rewrote storage");
+});
+
+test("glyph and colour both travel with the file", async () => {
+  const { cleanForExport } = await import("../src/lib/shortcuts-file.js");
+  const { ACCENTS } = await import("../src/lib/icons.js");
+  const live = [{ ...heading("s", "工作"), glyph: "Briefcase", accentColor: ACCENTS[2] }, link("a")];
+  const round = validateShortcutPayload({ shortcuts: cleanForExport(live) });
+  assert.equal(round[0].glyph, "Briefcase");
+  assert.equal(round[0].accentColor, ACCENTS[2]);
+
+  // A colour this build has never heard of is dropped, not fatal.
+  const future = validateShortcutPayload([
+    { type: "section", name: "未来", glyph: "Robot", accentColor: "#abcdef" },
+    { type: "link", name: "A", url: "https://a.test/" },
+  ]);
+  assert.equal(future[0].accentColor, null);
+  assert.equal(future[0].glyph, "Robot");
+});
