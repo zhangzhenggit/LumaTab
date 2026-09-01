@@ -18,7 +18,12 @@ export async function loadShortcuts() {
   }
 }
 
-function stripTransientFields(value) {
+// `icon` is dropped alongside the underscore-prefixed runtime fields, and that is deliberate:
+// links used to carry a preset-icon field under that name, and a stale one would resurrect
+// artwork the user had since replaced. It also means **`icon` is a reserved word in this data** —
+// a section's glyph is stored as `glyph` for exactly this reason. Written as `icon` it renders
+// perfectly and then vanishes on the next reload, which is how that was found.
+export function stripTransientFields(value) {
   if (Array.isArray(value)) return value.map(stripTransientFields);
   if (!value || typeof value !== "object") return value;
   const clean = {};

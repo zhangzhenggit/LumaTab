@@ -1,5 +1,6 @@
 import { createId, normalizeUrl } from "./icons.js";
 import { isSection, SECTION } from "./sections.js";
+import { normalizeSectionIcon } from "./section-icons.js";
 
 // Reading and writing the export file. Pulled out of useShortcuts because none of it is stateful
 // and all of it is exactly the sort of thing that should be assertable without a React tree — the
@@ -26,7 +27,7 @@ export function validateShortcutPayload(payload) {
     // up there is a malformed file rather than something to quietly drop.
     if (item.type === SECTION) {
       if (depth > 0) throw new Error("分组内不能再分区");
-      return { id: createId("section"), type: SECTION, name };
+      return { id: createId("section"), type: SECTION, name, glyph: normalizeSectionIcon(item.glyph) };
     }
     return {
       id: createId(),
@@ -53,7 +54,7 @@ export function cleanForExport(items = []) {
     }
     // Section headings travel with the file but carry no id: import mints fresh ids for
     // everything, so writing one would only put a stale number in the export.
-    if (isSection(item)) return { type: SECTION, name: item.name };
+    if (isSection(item)) return { type: SECTION, name: item.name, glyph: item.glyph ?? null };
     return { type: "link", name: item.name, url: item.url, iconMode: item.iconMode };
   });
 }

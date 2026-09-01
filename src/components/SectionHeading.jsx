@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { CaretDown, DotsSixVertical, DotsThree } from "@phosphor-icons/react";
 import { useDraggable } from "@dnd-kit/core";
 import { isCollapsed, isNamed } from "../lib/sections";
+import { SectionIcon } from "./SectionIcon";
 
 const MAX_NAME = 24;
 
@@ -91,6 +92,9 @@ export function SectionHeading({
           aria-expanded={!collapsed}
           onClick={onToggleCollapse}
         ><CaretDown size={13} weight="bold" /></button>
+      )}
+      {!compact && section.glyph && (
+        <span className="section-heading__icon"><SectionIcon name={section.glyph} /></span>
       )}
       {editing ? (
         <input

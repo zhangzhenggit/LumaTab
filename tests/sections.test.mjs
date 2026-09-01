@@ -289,3 +289,55 @@ test("the rules that override a tile's icon are written after it", async () => {
   assert.match(seam.slice(0, seam.indexOf("}")), /position:\s*absolute/,
     "the drop seam takes up layout, so arming it would move the grid mid-drag");
 });
+
+// `icon` is a reserved word in this data. storage.js drops every field called that, because
+// links used to carry a preset-icon field under that name and a stale one would resurrect
+// artwork the user had replaced. A section glyph written as `icon` renders perfectly and then
+// vanishes on the next reload, which is precisely how this was found — nothing in the render
+// path or the export path can catch it, only a real round trip through storage.
+test("a section's glyph survives being written to storage", async () => {
+  const { stripTransientFields } = await import("../src/lib/storage.js");
+  const { setSectionIcon, normalizeSectionIcon, SECTION_ICONS } = await import("../src/lib/section-icons.js");
+
+  const picked = setSectionIcon([heading("s", "工作")], "s", SECTION_ICONS[0]);
+  assert.equal(picked[0].glyph, SECTION_ICONS[0]);
+  assert.equal(stripTransientFields(picked)[0].glyph, SECTION_ICONS[0]);
+
+  // The legacy field is still stripped, from links and from anything else carrying one.
+  const legacy = stripTransientFields([{ ...link("a"), icon: "old-preset", _iconUrl: "blob:x" }]);
+  assert.deepEqual(Object.keys(legacy[0]).sort(), ["id", "name", "type", "url"]);
+
+  // Clearing the glyph, and refusing a name that is not in the set.
+  assert.equal(setSectionIcon(picked, "s", null)[0].glyph, null);
+  assert.equal(setSectionIcon(picked, "s", "NotAnIcon")[0].glyph, null);
+  assert.equal(normalizeSectionIcon("Briefcase"), "Briefcase");
+  assert.equal(setSectionIcon(picked, "s", SECTION_ICONS[0]), picked, "a no-op rewrote storage");
+});
+
+test("a glyph travels with the file, and an unknown one is dropped, not fatal", async () => {
+  const { cleanForExport } = await import("../src/lib/shortcuts-file.js");
+  const round = validateShortcutPayload({
+    shortcuts: cleanForExport([{ ...heading("s", "工作"), glyph: "Robot" }, link("a")]),
+  });
+  assert.equal(round[0].glyph, "Robot");
+
+  // A file from a later version can name a glyph this build has never heard of. Losing the
+  // picture is a far better outcome than refusing to import the links underneath it.
+  const future = validateShortcutPayload([
+    { type: "section", name: "未来", glyph: "SomethingNew" },
+    { type: "link", name: "A", url: "https://a.test/" },
+  ]);
+  assert.equal(future[0].glyph, null);
+  assert.equal(countLinks(future), 1);
+});
+
+// The "no icon" cell sits in the same grid as the glyphs, so the two together have to fill whole
+// rows. At twenty-four glyphs the panel ended on a row holding one orphan, which is the kind of
+// thing that comes straight back the next time somebody adds an icon they like.
+test("the icon picker fills whole rows, counting the one that clears it", async () => {
+  const { SECTION_ICONS, SECTION_ICON_COLUMNS, isSectionIcon } = await import("../src/lib/section-icons.js");
+  assert.equal((SECTION_ICONS.length + 1) % SECTION_ICON_COLUMNS, 0,
+    `${SECTION_ICONS.length} glyphs plus the clear cell leaves a short row of ${(SECTION_ICONS.length + 1) % SECTION_ICON_COLUMNS}`);
+  assert.equal(new Set(SECTION_ICONS).size, SECTION_ICONS.length, "the set has a duplicate in it");
+  assert.ok(SECTION_ICONS.every(isSectionIcon) && !isSectionIcon("Nope"));
+});

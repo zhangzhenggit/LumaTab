@@ -808,9 +808,12 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   min-width: 0;
   /* Aligned to the icon's left edge, not the cell's. The cell carries 30px of horizontal padding,
      so a heading flush with the track would hang 30px to the left of every icon beneath it.
-     Vertical space is asymmetric on purpose: row-gap already puts 34px on both sides, and the
-     padding adds to the top only, so a heading ends up roughly twice as far from the section
-     above as from the tiles it names — otherwise it reads as belonging to the wrong one. */
+     Vertical space is asymmetric on purpose, and the asymmetry is bought twice: row-gap puts
+     34px on both sides, the padding adds to the top only, and the negative bottom margin takes
+     most of the lower gap back. A heading has to sit close enough to the tiles it names that the
+     two read as one block — measured 49px below at first, which is more than the 34px between
+     two rows *inside* a section, so the caption looked like it belonged to nothing. */
+  margin-bottom: -22px;
   padding: 30px var(--cell-pad-x) 0;
 }
 /* Nothing above it to be spaced away from. */
@@ -858,6 +861,17 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 /* The caret leads the title, so it sits in the margin rather than pushing the text off the
    rail every other heading and tile is aligned to. */
 .section-heading__caret { margin-left: -26px; }
+
+/* Sits on the rail, before the word. Filled and the same colour as the text, so a heading is
+   one object rather than a badge with a caption — see SectionIcon for why it is not an emoji. */
+.section-heading__icon {
+  display: grid;
+  place-items: center;
+  margin-right: 7px;
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+}
+.newtab--light .section-heading__icon { color: var(--t1); filter: none; }
 
 .section-heading__count {
   margin-left: 2px;
@@ -955,7 +969,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
      heading reads as one more label that happens to be bold. Size does most of that work here;
      weight alone at caption size did not separate them. */
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
   font-family: inherit;
   line-height: 24px;
   letter-spacing: .01em;
@@ -1131,6 +1145,45 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   background: #ff3b30;
   box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
 }
+
+
+/* A closed set of two dozen glyphs, laid out eight to a row. Closed on purpose: an emoji
+   picker would put a different typeface, colour and optical weight on every heading, which is
+   the same failure the tile bevel had one level down. */
+.icon-picker {
+  position: fixed;
+  z-index: 60;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-line) inset;
+  animation: dialog-in var(--dur-2) var(--ease-out);
+}
+.icon-picker__grid {
+  display: grid;
+  /* Kept in step with SECTION_ICON_COLUMNS; a test pins that the glyphs plus the clear cell
+     fill whole rows at this width. */
+  grid-template-columns: repeat(8, 34px);
+  gap: 2px;
+}
+.icon-picker__cell {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--t2);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.icon-picker__cell:hover { background: rgba(0, 0, 0, .07); color: var(--t1); }
+.icon-picker__cell--on { color: #fff; background: #0a84ff; }
+.icon-picker__cell--on:hover { background: #0a84ff; color: #fff; }
 
 
 /* ---------- icon content ---------- */

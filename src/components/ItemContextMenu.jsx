@@ -1,6 +1,6 @@
-import { ArrowUp, ArrowsInLineVertical, ArrowsOutLineVertical, FolderOpen, PencilSimple, Trash } from "@phosphor-icons/react";
+import { ArrowUp, ArrowsInLineVertical, ArrowsOutLineVertical, FolderOpen, PencilSimple, Smiley, Trash } from "@phosphor-icons/react";
 
-export function ItemContextMenu({ menu, item, onClose, onEdit, onToggleCollapse, onMoveOut, onDissolve, onDelete }) {
+export function ItemContextMenu({ menu, item, onClose, onEdit, onPickIcon, onToggleCollapse, onMoveOut, onDissolve, onDelete }) {
   if (!menu || !item) return null;
 
   const isSection = item.type === "section";
@@ -15,6 +15,11 @@ export function ItemContextMenu({ menu, item, onClose, onEdit, onToggleCollapse,
         <button type="button" role="menuitem" onClick={onEdit}>
           <PencilSimple size={18} /><span>{isSection ? (item.name ? "重命名分区" : "命名分区") : item.type === "folder" ? "重命名分组" : "编辑快捷链接"}</span>
         </button>
+        {isSection && (
+          <button type="button" role="menuitem" onClick={onPickIcon}>
+            <Smiley size={18} /><span>选择图标</span>
+          </button>
+        )}
         {isSection && (
           <button type="button" role="menuitem" onClick={onToggleCollapse}>
             {collapsed ? <ArrowsOutLineVertical size={18} /> : <ArrowsInLineVertical size={18} />}

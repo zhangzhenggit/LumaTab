@@ -9,6 +9,7 @@ import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "
 import { useTileFlip } from "./useTileFlip";
 import { useSelection } from "./useSelection";
 import { measureTiles, typeMap } from "../lib/grid-metrics";
+import { setSectionIcon } from "../lib/section-icons";
 
 export function useShortcuts(notify) {
   const [shortcuts, setShortcuts] = useState([]);
@@ -328,6 +329,10 @@ export function useShortcuts(notify) {
     setShortcuts((current) => toggleCollapse(current, id));
   }
 
+  function setSectionIconTo(id, key) {
+    setShortcuts((current) => setSectionIcon(current, id, key));
+  }
+
   function renameSectionTo(id, name) {
     setShortcuts((current) => renameSection(current, id, name));
   }
@@ -362,7 +367,7 @@ export function useShortcuts(notify) {
     toggleSelected: selection.toggle, clearSelection: selection.clear,
     carried: activeId ? carriedRef.current : [],
     addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
-    addSection, renameSectionTo, deleteSection, toggleSectionCollapse,
+    addSection, renameSectionTo, deleteSection, toggleSectionCollapse, setSectionIconTo,
     sectionPlan: dropPlan?.kind === DROP_SECTION ? dropPlan : null,
     replaceAll, mergeIn,
   };

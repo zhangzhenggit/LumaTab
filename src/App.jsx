@@ -18,6 +18,7 @@ import { needsDarkInk, wallpaperFilterStyle } from "./lib/background-cache-keys"
 import { findItem } from "./lib/shortcuts-tree";
 import { isCollapsed, isSection, sectionsOf } from "./lib/sections";
 import { SectionDropCell, SectionHeading } from "./components/SectionHeading";
+import { SectionIconPicker } from "./components/SectionIconPicker";
 
 export function App({ initialWallpaper = null }) {
   const [notice, notify] = useNotice();
@@ -41,6 +42,7 @@ export function App({ initialWallpaper = null }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // The heading currently being renamed in place, by marker id.
   const [editingSection, setEditingSection] = useState(null);
+  const [iconPicker, setIconPicker] = useState(null);
 
   const active = shortcuts.find((item) => item.id === activeId) ?? null;
   // A section has no artwork and no URL, so handing it to ShortcutGhost drew a monogram tile for
@@ -88,6 +90,13 @@ export function App({ initialWallpaper = null }) {
     event.preventDefault();
     event.stopPropagation();
     setContextMenu({ x: event.clientX, y: event.clientY, itemId: item.id, folderId });
+  }
+
+  function openIconPicker() {
+    if (!contextMenu || !isSection(menuItem)) return;
+    // Opened where the menu was, so the panel appears under the same pointer that asked for it.
+    setIconPicker({ x: contextMenu.x, y: contextMenu.y, itemId: contextMenu.itemId });
+    setContextMenu(null);
   }
 
   function toggleMenuCollapse() {
@@ -279,10 +288,20 @@ export function App({ initialWallpaper = null }) {
         item={menuItem}
         onClose={() => setContextMenu(null)}
         onEdit={startEditing}
+        onPickIcon={openIconPicker}
         onToggleCollapse={toggleMenuCollapse}
         onMoveOut={moveMenuItemOut}
         onDissolve={dissolveMenuFolder}
         onDelete={deleteMenuItem}
+      />
+      <SectionIconPicker
+        picker={iconPicker}
+        current={findItem(shortcuts, iconPicker)?.glyph ?? null}
+        onPick={(key) => {
+          shortcutsApi.setSectionIconTo(iconPicker.itemId, key);
+          setIconPicker(null);
+        }}
+        onClose={() => setIconPicker(null)}
       />
       <button className="settings-launcher" type="button" onClick={() => setSettingsOpen(true)} aria-label="设置">
         <GearSix size={20} weight="fill" />
