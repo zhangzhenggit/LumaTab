@@ -499,6 +499,42 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 /* Nothing above it to be spaced away from. */
 .section-heading:first-child { padding-top: 0; }
 
+/* A heading whose name was cleared keeps the break and gives back the line: the row is laid out
+   at zero height, so the 34px row-gaps either side of it simply meet and the grid reads as
+   divided rather than captioned. The way back is an overlay that occupies no layout at all —
+   position: absolute in a 0px row — so an unnamed section costs exactly nothing until pointed at.
+   That is also why the row keeps `position: relative` and its padding is stripped rather than
+   the element being dropped entirely: with no element there is nothing to hover, and no way to
+   ever give the section a name again. */
+.section-heading--unnamed {
+  position: relative;
+  height: 0;
+  padding: 0;
+}
+.section-heading__add {
+  position: absolute;
+  top: -14px;
+  left: calc(var(--cell-pad-x) - 9px);
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 22px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, .14);
+  cursor: pointer;
+  opacity: 0;
+  text-shadow: var(--label-shadow);
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.section-heading--unnamed:hover .section-heading__add,
+.section-heading__add:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
 .section-heading__name,
 .section-heading__input {
   max-width: 100%;
@@ -539,6 +575,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 .newtab--light .section-heading__name,
 .newtab--light .section-heading__input,
+.newtab--light .section-heading__add,
 .newtab--light .section-drop__hint,
 .newtab--light .section-add {
   color: var(--t1);

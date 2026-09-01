@@ -61,9 +61,16 @@ export function appendSection(items = [], id, name = NEW_SECTION_NAME) {
   return [...items, { id, type: SECTION, name }];
 }
 
+// An empty name is a real answer, not a rejected one. Clearing a heading leaves the break itself
+// — the tiles below it still start a new row — and takes the label away, which is the only way to
+// divide a grid without also captioning it. An unnamed heading occupies no vertical space at all;
+// see .section-heading--unnamed.
+export function isNamed(section) {
+  return Boolean(String(section?.name ?? "").trim());
+}
+
 export function renameSection(items = [], id, name) {
   const clean = String(name ?? "").trim();
-  if (!clean) return items;
   // Returning the original array when nothing changed keeps opening a heading for editing and
   // closing it again from counting as an edit and rewriting storage for nothing — the same guard
   // applyPlan makes for a drag that lands where it started.

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isNamed } from "../lib/sections";
 
 const MAX_NAME = 24;
 
@@ -28,8 +29,13 @@ export function SectionHeading({ section, index, editing, onStartEdit, onCommit,
     input.select();
   }, [editing]);
 
+  const named = isNamed(section);
+
   return (
-    <div className="section-heading" style={{ "--i": index }}>
+    <div
+      className={`section-heading ${named || editing ? "" : "section-heading--unnamed"}`}
+      style={{ "--i": index }}
+    >
       {editing ? (
         <input
           ref={inputRef}
@@ -47,7 +53,7 @@ export function SectionHeading({ section, index, editing, onStartEdit, onCommit,
             if (event.key === "Escape") { event.preventDefault(); cancelled.current = true; onCancel(); }
           }}
         />
-      ) : (
+      ) : named ? (
         <button
           type="button"
           className="section-heading__name"
@@ -55,6 +61,17 @@ export function SectionHeading({ section, index, editing, onStartEdit, onCommit,
           onClick={onStartEdit}
           onContextMenu={onContextMenu}
         >{section.name}</button>
+      ) : (
+        // A heading with its name cleared keeps the break and gives back the line. The row is
+        // laid out at zero height, so the two row-gaps either side of it simply meet; what sits
+        // in the gap is an overlay that occupies nothing and shows nothing until pointed at,
+        // which is also the only way back to naming it.
+        <button
+          type="button"
+          className="section-heading__add"
+          onClick={onStartEdit}
+          onContextMenu={onContextMenu}
+        >命名此分区</button>
       )}
     </div>
   );

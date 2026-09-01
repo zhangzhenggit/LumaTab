@@ -14,7 +14,9 @@ export function validateShortcutPayload(payload) {
   const clean = (list, depth = 0) => list.map((item) => {
     if (!item || typeof item !== "object") throw new Error("文件中包含无法识别的条目");
     const name = String(item.name ?? "").trim();
-    if (!name) throw new Error("文件中有条目缺少名称");
+    // A section is the one thing allowed to have no name: an unnamed heading is a plain break in
+    // the grid, and refusing it here would silently drop every divider on import.
+    if (!name && item.type !== SECTION) throw new Error("文件中有条目缺少名称");
     if (item.type === "folder") {
       if (depth > 0) throw new Error("不支持嵌套分组");
       const children = Array.isArray(item.children) ? item.children : [];

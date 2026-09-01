@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  appendSection, countLinks, eachLink, isSection, NEW_SECTION_NAME,
+  appendSection, countLinks, eachLink, isNamed, isSection, NEW_SECTION_NAME,
   removeSection, renameSection, sectionsOf,
 } from "../src/lib/sections.js";
 import { applyPlan, DROP_MERGE, DROP_REORDER, planDrop } from "../src/lib/drag-plan.js";
@@ -106,11 +106,24 @@ test("deleting a section deletes the heading and nothing else", () => {
   assert.deepEqual(removeSection(items, "a"), items);
 });
 
-test("renaming trims, and refuses to leave a heading with no name", () => {
-  const items = [heading("s", "旧名")];
-  assert.equal(renameSection(items, "s", "  工作  ")[0].name, "工作");
-  assert.equal(renameSection(items, "s", "   ")[0].name, "旧名");
-  assert.equal(renameSection(items, "s", "")[0].name, "旧名");
+// Clearing the name is a real answer, not a rejected one: the break stays and the caption goes,
+// which is the only way to divide a grid without also labelling it. An unnamed heading is then
+// laid out at zero height, so it costs the page nothing — see .section-heading--unnamed.
+test("a heading can be left with no name at all, and the break survives it", () => {
+  const items = [link("a"), heading("s", "旧名"), link("b")];
+  assert.equal(renameSection(items, "s", "  工作  ")[1].name, "工作");
+
+  const cleared = renameSection(items, "s", "   ");
+  assert.equal(cleared[1].name, "");
+  assert.ok(!isNamed(cleared[1]));
+  // The section itself is untouched: two blocks before, two blocks after.
+  assert.deepEqual(sectionsOf(cleared).map((b) => b.tiles.map((t) => t.item.id)), [["a"], ["b"]]);
+  assert.equal(countLinks(cleared), 2);
+
+  // Naming it again is an ordinary rename.
+  assert.equal(renameSection(cleared, "s", "工作")[1].name, "工作");
+  // Nothing changed is still nothing changed, so an opened-and-closed editor writes no storage.
+  assert.equal(renameSection(cleared, "s", ""), cleared);
   assert.equal(appendSection([link("a")], "s2")[1].name, NEW_SECTION_NAME);
 });
 
@@ -141,15 +154,17 @@ test("headings survive a round trip through a file, and old files still open", (
 test("export and import agree about what a heading is", async () => {
   const { cleanForExport } = await import("../src/lib/shortcuts-file.js");
   const live = [
+    heading("s0", ""),
     heading("s1", "工作"),
     { ...link("a"), _iconUrl: "blob:whatever", _iconAccent: "#fff" },
     heading("s2", "娱乐"),
     folder("f", [link("b"), link("c")]),
   ];
   const round = validateShortcutPayload({ shortcuts: cleanForExport(live) });
-  assert.deepEqual(round.map((i) => i.type), ["section", "link", "section", "folder"]);
-  assert.deepEqual(round.filter(isSection).map((i) => i.name), ["工作", "娱乐"]);
-  assert.deepEqual(sectionsOf(round).map((b) => b.tiles.length), [1, 1]);
+  assert.deepEqual(round.map((i) => i.type), ["section", "section", "link", "section", "folder"]);
+  assert.deepEqual(round.map((i) => i.name), ["", "工作", "a", "娱乐", "f"],
+    "an unnamed break did not survive the round trip");
+  assert.deepEqual(sectionsOf(round).map((b) => b.tiles.length), [0, 1, 1]);
   // Runtime icon fields never reach the file.
   assert.ok(!JSON.stringify(cleanForExport(live)).includes("blob:"));
 });
