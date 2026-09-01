@@ -44,7 +44,7 @@ function TileLabel({ name }) {
 // order, and that preview was the whole problem: it moved the tile the pointer was aiming at.
 // The tile therefore carries no transform at all — it sits still for the entire drag, and the
 // only feedback is the ring on a merge target or the caret in the gap it would slot into.
-export function ShortcutTile({ item, index = 0, muted, onActivate, onContextMenu, dropMode, dropEdge, landed }) {
+export function ShortcutTile({ item, index = 0, muted, selected, onActivate, onContextMenu, onToggleSelect, dropMode, dropEdge, landed }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: item.id });
 
   function keyDown(event) {
@@ -59,7 +59,7 @@ export function ShortcutTile({ item, index = 0, muted, onActivate, onContextMenu
       ref={setNodeRef}
       // `muted` is a tile inside the section whose heading is being dragged: the block moves
       // as one, so the whole block has to read as picked up, not just the line above it.
-      className={`shortcut ${isDragging || muted ? "shortcut--dragging" : ""} ${dropMode ? "shortcut--merge-ready" : ""} ${landed ? "shortcut--landed" : ""}`}
+      className={`shortcut ${isDragging || muted ? "shortcut--dragging" : ""} ${dropMode ? "shortcut--merge-ready" : ""} ${landed ? "shortcut--landed" : ""} ${selected ? "shortcut--selected" : ""}`}
       // Its place in the entrance queue; see .shortcut-grid--ready .shortcut in styles.css. The
       // grid's column count comes from auto-fill, so this is the only ordering either side knows.
       style={{ "--i": index }}
@@ -67,7 +67,16 @@ export function ShortcutTile({ item, index = 0, muted, onActivate, onContextMenu
       role="link"
       tabIndex="0"
       aria-label={item.type === "folder" ? `打开分组 ${item.name}` : `打开 ${item.name}`}
-      onClick={(event) => onActivate(item, event)}
+      onClick={(event) => {
+        // Ctrl/Cmd-click builds a selection instead of opening the link, the way it does in
+        // every file manager. A plain click always opens: this is a launcher first.
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          onToggleSelect?.(item.id);
+          return;
+        }
+        onActivate(item, event);
+      }}
       onContextMenu={(event) => onContextMenu(event, item)}
       onKeyDown={keyDown}
       {...attributes}
@@ -80,10 +89,13 @@ export function ShortcutTile({ item, index = 0, muted, onActivate, onContextMenu
   );
 }
 
-export function ShortcutGhost({ item }) {
+export function ShortcutGhost({ item, count = 1 }) {
   return (
     <div className="shortcut shortcut--overlay">
       <TileFace item={item} />
+      {/* Without this a five-tile drag looks exactly like a one-tile drag: the other four are
+          still sitting in the grid behind the cursor, dimmed, where nobody is looking. */}
+      {count > 1 && <span className="shortcut__count" aria-hidden="true">{count}</span>}
       <TileLabel name={item.name} />
     </div>
   );

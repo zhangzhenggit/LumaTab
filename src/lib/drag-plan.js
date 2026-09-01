@@ -57,9 +57,13 @@ function centreGap(point, cell) {
 // The pointer is resolved to a cell even when it is nowhere near one (below the last row, out in
 // the margin, over the "+" tile), by falling back to the closest cell centre. A drag released in
 // empty space then still lands somewhere predictable instead of being silently thrown away.
-export function planDrop(point, cells, { sourceId, sourceType }) {
+export function planDrop(point, cells, { sourceId, sourceIds, sourceType }) {
   if (!point || !cells?.length) return null;
-  const targets = cells.filter((cell) => cell.id !== sourceId);
+  // Every tile being carried is excluded, not just the one under the cursor. With a rubber-band
+  // selection in hand the others are still sitting in the grid, and one of them would otherwise
+  // be a perfectly good target for the group it is a member of.
+  const carried = new Set(sourceIds?.length ? sourceIds : [sourceId]);
+  const targets = cells.filter((cell) => !carried.has(cell.id));
   if (!targets.length) return null;
 
   // Nearest icon centre, not "whichever cell box contains the pointer". A cell is top-heavy — the
@@ -111,24 +115,30 @@ export function samePlan(a, b) {
 
 // Applies a completed drag. Kept out of the component so the outcome of every gesture can be
 // asserted directly, without a DOM or a pointer.
-export function applyPlan(items, plan, { sourceId, makeFolderId }) {
+export function applyPlan(items, plan, { sourceId, sourceIds, makeFolderId }) {
   if (!plan) return items;
-  const source = items.find((item) => item.id === sourceId);
+  // One tile or a whole band of them, the shape is the same: pull the sources out, then put them
+  // back somewhere. They keep the order they had in the grid rather than the order they happened
+  // to be selected in — the grid's order is the one the user can see.
+  const carried = new Set(sourceIds?.length ? sourceIds : [sourceId]);
+  const sources = items.filter((item) => carried.has(item.id));
   const target = items.find((item) => item.id === plan.targetId);
-  if (!source || !target || source === target) return items;
+  if (!sources.length || !target || carried.has(target.id)) return items;
 
-  const rest = items.filter((item) => item !== source);
+  const rest = items.filter((item) => !carried.has(item.id));
   const at = rest.indexOf(target);
 
-  if (plan.kind === DROP_MERGE && source.type === "link") {
+  if (plan.kind === DROP_MERGE && sources.every((item) => item.type === "link")) {
     rest[at] = target.type === "folder"
-      ? { ...target, children: [...(target.children ?? []), source] }
-      : { id: makeFolderId(), type: "folder", name: target.name, children: [target, source] };
+      ? { ...target, children: [...(target.children ?? []), ...sources] }
+      : { id: makeFolderId(), type: "folder", name: target.name, children: [target, ...sources] };
     return rest;
   }
 
-  rest.splice(plan.side === "before" ? at : at + 1, 0, source);
+  rest.splice(plan.side === "before" ? at : at + 1, 0, ...sources);
   // Dropping into the gap the tile already occupies is a no-op; returning the original array
   // keeps it from counting as an edit and rewriting storage for nothing.
-  return rest.every((item, index) => item === items[index]) ? items : rest;
+  return rest.length === items.length && rest.every((item, index) => item === items[index])
+    ? items
+    : rest;
 }

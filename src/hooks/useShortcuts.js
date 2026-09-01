@@ -7,6 +7,8 @@ import { applyPlan, DROP_MERGE, DROP_REORDER, DROP_SECTION, planDrop, planSectio
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 import { useTileFlip } from "./useTileFlip";
+import { useSelection } from "./useSelection";
+import { measureTiles, typeMap } from "../lib/grid-metrics";
 
 export function useShortcuts(notify) {
   const [shortcuts, setShortcuts] = useState([]);
@@ -25,18 +27,12 @@ export function useShortcuts(notify) {
   const gridRef = useRef([]);
   const seamsRef = useRef([]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const selection = useSelection(shortcutsRef);
+  // The tiles this gesture is carrying, settled at drag start and read by everything after it.
+  const carriedRef = useRef([]);
 
   function measureGrid() {
-    const types = new Map(shortcutsRef.current.map((item) => [item.id, item.type]));
-    const grid = document.querySelector(".shortcut-grid");
-    return Array.from(grid?.querySelectorAll("[data-tile-id]") ?? [])
-      .filter((node) => types.has(node.dataset.tileId))
-      .map((node) => ({
-        id: node.dataset.tileId,
-        type: types.get(node.dataset.tileId),
-        cell: node.getBoundingClientRect(),
-        icon: node.querySelector(".shortcut__icon")?.getBoundingClientRect() ?? null,
-      }));
+    return measureTiles(typeMap(shortcutsRef.current));
   }
 
   // Every heading marks the top of its own block, and one more seam sits under the last row so a
@@ -66,7 +62,15 @@ export function useShortcuts(notify) {
         firstSeam: firstMovableSeam(sectionsOf(shortcutsRef.current)),
       });
     }
-    return planDrop(point, gridRef.current, { sourceId, sourceType: source?.type ?? "link" });
+    const sourceIds = carriedRef.current;
+    const carried = shortcutsRef.current.filter((item) => sourceIds.includes(item.id));
+    return planDrop(point, gridRef.current, {
+      sourceId,
+      sourceIds,
+      // A band can hold a folder as easily as a link, and a folder cannot be merged into
+      // anything. One unmergeable passenger makes the whole gesture a reorder.
+      sourceType: carried.length && carried.every((item) => item.type === "link") ? "link" : "mixed",
+    });
   }
 
 
@@ -124,9 +128,10 @@ export function useShortcuts(notify) {
 
   useEffect(() => {
     if (!ready) return;
+    selection.prune(shortcuts);
     const timeout = setTimeout(() => void saveShortcuts(shortcuts), 120);
     return () => clearTimeout(timeout);
-  }, [ready, shortcuts]);
+  }, [ready, shortcuts, selection.prune]);
 
   function resetDragState() {
     setActiveId(null);
@@ -137,6 +142,18 @@ export function useShortcuts(notify) {
   // rotation inflating a bounding box, no merge ring, no hover lift on anything but the tile
   // being picked up — and that one is excluded from the targets anyway.
   function dragStart(event) {
+    const sourceId = String(event.active.id);
+    // Picking up a tile that is part of the selection carries the whole selection; picking up one
+    // that is not says the selection was not what you meant, so it goes. Same rule as every file
+    // manager, and the only one that does not strand a selection you have visibly left behind.
+    if (selection.selection.has(sourceId)) {
+      carriedRef.current = shortcutsRef.current
+        .filter((item) => selection.selection.has(item.id))
+        .map((item) => item.id);
+    } else {
+      carriedRef.current = [sourceId];
+      selection.clear();
+    }
     gridRef.current = measureGrid();
     seamsRef.current = measureSeams(sectionsOf(shortcutsRef.current).length);
     // The sensor only fires this after 6px of travel, so there is already a real pointer position
@@ -174,10 +191,13 @@ export function useShortcuts(notify) {
     // so a link released on a collapsed heading opens that section on the way in.
     const target = shortcutsRef.current.find((item) => item.id === plan?.targetId);
     const folderId = createId("folder");
+    const sourceIds = carriedRef.current;
     setShortcuts((current) => {
-      const next = applyPlan(current, plan, { sourceId, makeFolderId: () => folderId });
+      const next = applyPlan(current, plan, { sourceId, sourceIds, makeFolderId: () => folderId });
       return isCollapsed(target) ? toggleCollapse(next, target.id) : next;
     });
+    if (sourceIds.length > 1) notify(`已移动 ${sourceIds.length} 个链接`);
+    selection.clear();
     if (plan?.kind === DROP_MERGE) {
       // The dragged tile is gone — swallowed by the target — so the feedback has to come from
       // whatever swallowed it. Merging onto a folder lands on that folder; merging onto a link
@@ -337,6 +357,10 @@ export function useShortcuts(notify) {
     mergeReadyId: dropPlan?.kind === DROP_MERGE ? dropPlan.targetId : null,
     dropIndicator: dropPlan?.kind === DROP_REORDER ? dropPlan : null,
     dragStart, dragMove, dragEnd, resetDragState,
+    selection: selection.selection, band: selection.band,
+    onBandPointerDown: selection.onPointerDown,
+    toggleSelected: selection.toggle, clearSelection: selection.clear,
+    carried: activeId ? carriedRef.current : [],
     addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
     addSection, renameSectionTo, deleteSection, toggleSectionCollapse,
     sectionPlan: dropPlan?.kind === DROP_SECTION ? dropPlan : null,

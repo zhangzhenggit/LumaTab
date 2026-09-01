@@ -24,7 +24,7 @@ export function App({ initialWallpaper = null }) {
   const wallpaperApi = useBingWallpaper(notify, initialWallpaper);
   const { wallpaper, backgroundMeta, tuning, photoLuminance } = wallpaperApi;
   const shortcutsApi = useShortcuts(notify);
-  const { shortcuts, ready, sensors, activeId, landedId, mergeReadyId, dropIndicator, sectionPlan } = shortcutsApi;
+  const { shortcuts, ready, sensors, activeId, landedId, mergeReadyId, dropIndicator, sectionPlan, selection, band, carried } = shortcutsApi;
   const siteAccess = useSiteAccess(shortcuts, ready);
   // Drives `scale` and `translate` on the wallpaper layer from its own clamped clock, so a tab
   // coming back from hidden resumes instead of jumping. The seed identifies the picture, not the
@@ -171,7 +171,10 @@ export function App({ initialWallpaper = null }) {
       {siteAccess.showPrompt && (
         <SiteAccessPrompt onGrant={siteAccess.grant} onDismiss={siteAccess.dismiss} />
       )}
-      <div className="newtab__content">
+      {/* The rubber band starts on the parts of the page that mean nothing — wallpaper, margins,
+          the gaps between rows — and useSelection refuses anything that already means something
+          when pressed. Nothing had to give up a gesture for this. */}
+      <div className="newtab__content" onPointerDown={shortcutsApi.onBandPointerDown}>
         <SearchBar />
         {/* No SortableContext: the grid is a static target for the whole drag, and every drop is
             resolved from the snapshot taken when it started. dropAnimation is off for the same
@@ -205,9 +208,15 @@ export function App({ initialWallpaper = null }) {
                     key={item.id}
                     item={item}
                     index={index}
-                    muted={activeId === block.marker?.id}
+                    // Dimmed for two different reasons that mean the same thing: this tile is being
+                    // carried. Either its section's heading is the thing being dragged, or it is one
+                    // of the band the cursor picked up — and the passengers have to read as picked up
+                    // too, or a three-tile drag looks like the other two stayed behind.
+                    muted={activeId === block.marker?.id || (Boolean(activeId) && carried.includes(item.id))}
+                    selected={selection.has(item.id)}
                     onActivate={activate}
                     onContextMenu={openItemMenu}
+                    onToggleSelect={shortcutsApi.toggleSelected}
                     dropMode={mergeReadyId === item.id ? (item.type === "folder" ? "folder" : "merge") : null}
                     dropEdge={dropIndicator?.targetId === item.id ? dropIndicator.side : null}
                     landed={landedId === item.id}
@@ -240,13 +249,20 @@ export function App({ initialWallpaper = null }) {
             ))}
           </section>
           <DragOverlay dropAnimation={null}>
-            {activeItem && <ShortcutGhost item={activeItem} />}
+            {activeItem && <ShortcutGhost item={activeItem} count={carried.length} />}
             {activeSection && (
               <span className="section-ghost">{activeSection.name || "未命名分区"}</span>
             )}
           </DragOverlay>
         </DndContext>
       </div>
+      {band && (
+        <div
+          className="marquee"
+          aria-hidden="true"
+          style={{ left: band.left, top: band.top, width: band.width, height: band.height }}
+        />
+      )}
       {backgroundMeta?.copyright && <a className="photo-credit" href={backgroundMeta.copyrightLink} title={backgroundMeta.copyright}>{backgroundMeta.title || "Bing 每日图"}</a>}
       <AddLinkDialog open={addDialog} onClose={() => setAddDialog(false)} onSubmit={addLink} />
       <AddLinkDialog open={Boolean(editorItem)} item={editorItem} onClose={() => setEditor(null)} onSubmit={saveEditedItem} />

@@ -1086,6 +1086,53 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 
 
+/* The rubber band itself. Fixed to the viewport because that is the coordinate space the
+   pointer arrives in and the space the cells were measured in; anything else would have to track
+   the content column's scroll, and the band would drift the moment the grid moved under it. */
+.marquee {
+  position: fixed;
+  z-index: 5;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7);
+  pointer-events: none;
+}
+.newtab--light .marquee {
+  background: rgba(0, 0, 0, .08);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35);
+}
+
+/* Selected is a quieter ring than the merge target's: a merge ring is a decision about to be
+   made and gets a 3px halo plus 18% of scale, while a selection can sit there for a while and
+   several at once. Same material, one step down, and no scale at all — a grid where five tiles
+   have grown is a grid that looks broken. */
+.shortcut--selected .shortcut__icon {
+  box-shadow: 0 0 0 2.5px rgba(255, 255, 255, .92);
+}
+.newtab--light .shortcut--selected .shortcut__icon {
+  box-shadow: 0 0 0 2.5px rgba(0, 0, 0, .55);
+}
+
+/* How many tiles the cursor is carrying. Without it a five-tile drag looks exactly like a
+   one-tile drag, because the other four are still in the grid behind the pointer, dimmed. */
+.shortcut__count {
+  position: absolute;
+  top: 6px;
+  right: 22px;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  background: #ff3b30;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+}
+
+
 /* ---------- icon content ---------- */
 
 .brand-icon { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
