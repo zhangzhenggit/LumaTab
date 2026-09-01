@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { AddLinkDialog } from "./components/AddLinkDialog";
 import { FolderPanel } from "./components/FolderPanel";
-import { GearSix } from "@phosphor-icons/react";
+import { GearSix, Plus } from "@phosphor-icons/react";
 import { ItemContextMenu } from "./components/ItemContextMenu";
 import { SearchBar } from "./components/SearchBar";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -16,6 +16,8 @@ import { useWallpaperDrift } from "./hooks/useWallpaperDrift";
 import { Aurora } from "./components/Aurora";
 import { needsDarkInk, wallpaperFilterStyle } from "./lib/background-cache-keys";
 import { findItem } from "./lib/shortcuts-tree";
+import { isSection, sectionsOf } from "./lib/sections";
+import { SectionDropCell, SectionHeading } from "./components/SectionHeading";
 
 export function App({ initialWallpaper = null }) {
   const [notice, notify] = useNotice();
@@ -37,6 +39,8 @@ export function App({ initialWallpaper = null }) {
   const [contextMenu, setContextMenu] = useState(null);
   const [openFolder, setOpenFolder] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // The heading currently being renamed in place, by marker id.
+  const [editingSection, setEditingSection] = useState(null);
 
   const activeItem = shortcuts.find((item) => item.id === activeId) ?? null;
   // The panel remembers where it was opened from so it can grow out of that tile; the folder
@@ -45,6 +49,9 @@ export function App({ initialWallpaper = null }) {
     ? shortcuts.find((item) => item.id === openFolder.id && item.type === "folder") ?? null
     : null;
   const editorItem = findItem(shortcuts, editor);
+  // One flat array in, render blocks out. The grid stays a single grid — see .section-heading
+  // in styles.css for why splitting it into one grid per section would break the drag.
+  const blocks = sectionsOf(shortcuts);
   const menuItem = findItem(shortcuts, contextMenu);
 
   function activate(item, event) {
@@ -81,8 +88,19 @@ export function App({ initialWallpaper = null }) {
 
   function startEditing() {
     if (!contextMenu) return;
+    // A heading has exactly one editable field and it is already on screen, so renaming one goes
+    // back to the heading itself rather than opening the link dialog with everything hidden.
+    if (isSection(menuItem)) {
+      setEditingSection(contextMenu.itemId);
+      setContextMenu(null);
+      return;
+    }
     setEditor({ itemId: contextMenu.itemId, folderId: contextMenu.folderId });
     setContextMenu(null);
+  }
+
+  function createSection() {
+    setEditingSection(shortcutsApi.addSection());
   }
 
   function saveEditedItem(values) {
@@ -92,7 +110,8 @@ export function App({ initialWallpaper = null }) {
 
   function deleteMenuItem() {
     if (!contextMenu) return;
-    shortcutsApi.deleteItem(contextMenu);
+    if (isSection(menuItem)) shortcutsApi.deleteSection(contextMenu.itemId);
+    else shortcutsApi.deleteItem(contextMenu);
     setContextMenu(null);
   }
 
@@ -150,19 +169,56 @@ export function App({ initialWallpaper = null }) {
             flying the ghost back to where the drag began would animate to the wrong place. */}
         <DndContext sensors={sensors} onDragStart={dragStart} onDragMove={shortcutsApi.dragMove} onDragEnd={shortcutsApi.dragEnd} onDragCancel={shortcutsApi.resetDragState}>
           <section className={`shortcut-grid ${ready ? "shortcut-grid--ready" : ""} ${activeId ? "shortcut-grid--editing" : ""}`} aria-label="快捷链接">
-            {shortcuts.map((item, index) => (
-              <ShortcutTile
-                key={item.id}
-                item={item}
-                index={index}
-                onActivate={activate}
-                onContextMenu={openItemMenu}
-                dropMode={mergeReadyId === item.id ? (item.type === "folder" ? "folder" : "merge") : null}
-                dropEdge={dropIndicator?.targetId === item.id ? dropIndicator.side : null}
-                landed={landedId === item.id}
-              />
+            {blocks.map((block, blockIndex) => (
+              <Fragment key={block.marker?.id ?? "lead"}>
+                {block.marker && (
+                  <SectionHeading
+                    section={block.marker}
+                    index={block.markerIndex}
+                    editing={editingSection === block.marker.id}
+                    onStartEdit={() => setEditingSection(block.marker.id)}
+                    onCommit={(name) => {
+                      shortcutsApi.renameSectionTo(block.marker.id, name);
+                      setEditingSection(null);
+                    }}
+                    onCancel={() => setEditingSection(null)}
+                    onContextMenu={(event) => openItemMenu(event, block.marker)}
+                  />
+                )}
+                {block.tiles.map(({ item, index }) => (
+                  <ShortcutTile
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onActivate={activate}
+                    onContextMenu={openItemMenu}
+                    dropMode={mergeReadyId === item.id ? (item.type === "folder" ? "folder" : "merge") : null}
+                    dropEdge={dropIndicator?.targetId === item.id ? dropIndicator.side : null}
+                    landed={landedId === item.id}
+                  />
+                ))}
+                {block.marker && block.tiles.length === 0 && (
+                  <SectionDropCell section={block.marker} index={block.markerIndex + 1} armed={dropIndicator?.targetId === block.marker.id} />
+                )}
+                {/* One "+", at the very end of the grid, so a new link joins whichever section is
+                    last — the same direction "新建分区" grows the page in. */}
+                {blockIndex === blocks.length - 1 && (
+                  <AddTile index={shortcuts.length} onClick={() => setAddDialog(true)} />
+                )}
+                {/* A full-width row inside the grid rather than a control under it. auto-fill
+                    keeps its empty tracks, so the tiles hug the left of a track set that is
+                    itself centred — meaning the grid's left rail moves with the window and
+                    nothing outside the grid can line up with it. In here it always does.
+                    Nearly transparent until pointed at: most people never divide the grid and
+                    should not be paying a lit control for a feature they will not use, but it
+                    still has to be findable, which a gesture-only entry point would not be. */}
+                {blockIndex === blocks.length - 1 && (
+                  <button className="section-add" type="button" onClick={createSection}>
+                    <Plus size={13} weight="bold" aria-hidden="true" /><span>新建分区</span>
+                  </button>
+                )}
+              </Fragment>
             ))}
-            <AddTile index={shortcuts.length} onClick={() => setAddDialog(true)} />
           </section>
           <DragOverlay dropAnimation={null}>{activeItem ? <ShortcutGhost item={activeItem} /> : null}</DragOverlay>
         </DndContext>

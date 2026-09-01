@@ -305,8 +305,14 @@ test("motion runs off one set of tokens, and reduced motion actually stops it", 
   assert.match(css, /@supports \(animation-timing-function: linear\(0, 1\)\)/,
     "the spring easing lost its feature query, so Chrome 109-112 gets an invalid easing");
 
-  // Every tile arrives on its own delay; the grid no longer fades as one block.
-  assert.match(css, /\.shortcut-grid--ready \.shortcut\s*\{[^}]*animation:\s*tile-in/);
+  // Every tile arrives on its own delay; the grid no longer fades as one block. Section headings
+  // join the same queue rather than running one of their own, so the sweep stays a single sweep
+  // across a divided grid instead of restarting under every heading.
+  const entrance = css.slice(css.indexOf(".shortcut-grid--ready .shortcut"));
+  const entranceRule = entrance.slice(0, entrance.indexOf("}"));
+  assert.match(entranceRule, /animation:\s*tile-in/);
+  assert.ok(entranceRule.includes(".shortcut-grid--ready .section-heading"),
+    "the heading is not in the entrance queue with the tiles");
   assert.match(css, /animation-delay:\s*calc\(min\(var\(--i, 0\), \d+\)/);
 
   // Shortening an infinite animation's duration does not stop it — it runs the whole cycle every

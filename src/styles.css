@@ -441,7 +441,10 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .shortcut-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, var(--cell-size));
-  grid-auto-rows: var(--cell-size);
+  /* Was a fixed --cell-size. A section heading is a row in this same grid and is nothing like
+     120px tall, so the track has to size itself; every tile sets that height on itself anyway
+     (.shortcut below), which is what keeps tile rows identical to what they were. */
+  grid-auto-rows: min-content;
   /* Rows only. The cell already carries 30px of horizontal padding, so columns are spaced; what
      it does not carry is anything below the caption, which left consecutive rows reading as one
      dense block. Adding it here rather than growing --cell-size keeps the tile's own geometry —
@@ -465,11 +468,143 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    the last tile of a full grid should not be waiting on the fortieth step of a queue. `backwards`
    is what holds a tile invisible through its own delay instead of flashing it first. */
 .shortcut-grid--ready { opacity: 1; }
-.shortcut-grid--ready .shortcut {
+.shortcut-grid--ready .shortcut,
+.shortcut-grid--ready .section-heading {
   animation: tile-in var(--dur-3) var(--ease-out) backwards;
   animation-delay: calc(min(var(--i, 0), 15) * 24ms);
 }
 @keyframes tile-in { from { opacity: 0; transform: translateY(10px) scale(.94); } }
+
+/* ---------- section headings ---------- */
+
+/* The grid stays ONE grid; a heading is a full-width row inside it. That is what lets everything
+   else stand still: measureGrid still returns one flat list of cells, planDrop still picks the
+   nearest icon centre straight across a heading, and dragging a link from the last row of one
+   section into the first row of the next is an ordinary reorder with no new code behind it. One
+   grid per section would also have let each one resolve its own auto-fill column count, so two
+   sections could disagree about where column 1 is — on a width that fits 7.5 cells they would
+   still agree, but a section holding a single tile would not stretch the same way. */
+.section-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+  /* Aligned to the icon's left edge, not the cell's. The cell carries 30px of horizontal padding,
+     so a heading flush with the track would hang 30px to the left of every icon beneath it.
+     Vertical space is asymmetric on purpose: row-gap already puts 34px on both sides, and the
+     padding adds to the top only, so a heading ends up roughly twice as far from the section
+     above as from the tiles it names — otherwise it reads as belonging to the wrong one. */
+  padding: 30px var(--cell-pad-x) 0;
+}
+/* Nothing above it to be spaced away from. */
+.section-heading:first-child { padding-top: 0; }
+
+.section-heading__name,
+.section-heading__input {
+  max-width: 100%;
+  color: #fff;
+  /* A step above the 14px captions, and the step has to be visible from across the page or the
+     heading reads as one more label that happens to be bold. Size does most of that work here;
+     weight alone at caption size did not separate them. */
+  font-size: 17px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 24px;
+  letter-spacing: .01em;
+  text-shadow: var(--label-shadow);
+}
+.section-heading__name {
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: text;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.section-heading__name:hover { opacity: .72; }
+/* Negative inline margin so the text does not shift sideways when the field appears around it:
+   the pill's own padding would otherwise push the first character 8px to the right at the exact
+   moment the eye is on it. */
+.section-heading__input {
+  min-width: 140px;
+  margin-inline: -9px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42);
+  outline: none;
+}
+.newtab--light .section-heading__name,
+.newtab--light .section-heading__input,
+.newtab--light .section-drop__hint,
+.newtab--light .section-add {
+  color: var(--t1);
+  text-shadow: 0 0 4px rgba(255, 255, 255, .55);
+}
+.newtab--light .section-heading__input {
+  background: rgba(255, 255, 255, .5);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
+
+/* A section with nothing in it still has to be droppable, and the drag only aims at cells that
+   were measured — so this placeholder carries the marker's own id and becomes an ordinary target.
+   It is a soft inset ring rather than a dashed outline: every other empty-ish surface here (the
+   Add tile, the glass rims) is drawn with an inset highlight, and a dashed border would be the
+   only stroke of its kind on the page. */
+.section-drop { cursor: default; }
+.section-drop__icon {
+  filter: none;
+  background: rgba(255, 255, 255, .09);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .3);
+  transition: background var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.section-drop__icon::after { box-shadow: none; }
+.section-drop--armed .section-drop__icon {
+  background: rgba(255, 255, 255, .2);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85);
+}
+.section-drop__hint {
+  padding-top: var(--label-gap);
+  color: #fff;
+  font-size: var(--label-size);
+  line-height: 20px;
+  opacity: .62;
+  text-shadow: var(--label-shadow);
+}
+
+/* Nearly invisible until pointed at. Most people never divide the grid and should not be paying
+   a lit control for it; it still has to be findable, which is why it is here and not behind a
+   gesture only someone already looking for it would try. */
+.section-add {
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  /* The 13px cancels the button's own left padding, so the "+" lands on the same rail as the
+     icons and the section headings rather than 13px inside it; the pill just overhangs it. */
+  margin: 22px 0 2px calc(var(--cell-pad-x) - 13px);
+  padding: 6px 13px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  background: transparent;
+  cursor: pointer;
+  opacity: .34;
+  text-shadow: var(--label-shadow);
+  transition: opacity var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
+}
+.section-add:hover,
+.section-add:focus-visible {
+  opacity: 1;
+  background: rgba(255, 255, 255, .14);
+  outline: none;
+}
 
 .shortcut {
   /* Flex column, not block: a <button> vertically centres its own content, so the label-less Add

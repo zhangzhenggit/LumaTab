@@ -2,46 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { createId, normalizeUrl } from "../lib/icons";
 import { collapseThinFolders } from "../lib/shortcuts-tree";
+import { appendSection, countLinks, eachLink, NEW_SECTION_NAME, removeSection, renameSection } from "../lib/sections";
 import { applyPlan, DROP_MERGE, DROP_REORDER, planDrop, pointerAt, samePlan } from "../lib/drag-plan";
 import { loadShortcuts, saveShortcuts } from "../lib/storage";
 import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 import { useTileFlip } from "./useTileFlip";
-
-function countLinks(items) {
-  return items.reduce((total, item) => item.type === "folder"
-    ? total + (item.children?.length ?? 0)
-    : total + 1, 0);
-}
-
-// Accepts a plain array of items exported by this extension, rejecting anything whose shape we
-// cannot render. Import replaces or merges live data, so a malformed file must fail loudly here
-// rather than half-apply and leave the grid in a state the user cannot undo.
-export function validateShortcutPayload(payload) {
-  const items = Array.isArray(payload) ? payload : payload?.shortcuts;
-  if (!Array.isArray(items)) throw new Error("文件格式不正确：应为快捷方式数组");
-
-  const clean = (list, depth = 0) => list.map((item) => {
-    if (!item || typeof item !== "object") throw new Error("文件中包含无法识别的条目");
-    const name = String(item.name ?? "").trim();
-    if (!name) throw new Error("文件中有条目缺少名称");
-    if (item.type === "folder") {
-      if (depth > 0) throw new Error("不支持嵌套分组");
-      const children = Array.isArray(item.children) ? item.children : [];
-      return { id: createId(), type: "folder", name, children: clean(children, depth + 1) };
-    }
-    return {
-      id: createId(),
-      type: "link",
-      name,
-      url: normalizeUrl(String(item.url ?? "")),
-      iconMode: item.iconMode === "generated" ? "generated" : "auto",
-    };
-  });
-
-  const result = clean(items);
-  if (!result.length) throw new Error("文件中没有任何快捷方式");
-  return result;
-}
 
 export function useShortcuts(notify) {
   const [shortcuts, setShortcuts] = useState([]);
@@ -281,16 +246,35 @@ export function useShortcuts(notify) {
 
   function mergeIn(items) {
     const existing = new Set();
-    const collect = (list) => list.forEach((item) => item.type === "folder"
-      ? collect(item.children ?? [])
-      : existing.add(item.url));
-    collect(shortcutsRef.current);
-    const fresh = items.filter((item) => item.type === "folder" || !existing.has(item.url));
+    eachLink(shortcutsRef.current, (link) => existing.add(link.url));
+    const fresh = items.filter((item) => item.type !== "link" || !existing.has(item.url));
     if (!fresh.length) {
       notify("没有新的链接需要导入");
       return;
     }
     adoptImported([...shortcutsRef.current, ...fresh], `已合并 ${countLinks(fresh)} 个链接`);
+  }
+
+  // Appending rather than inserting anywhere clever: the "+" tile that adds links also sits at
+  // the very end, so both ways of growing the grid grow it in the same direction. The new heading
+  // arrives empty and named nothing in particular, and the caller opens it for renaming straight
+  // away — a section whose first act is asking what it is called explains itself better than any
+  // dialog would.
+  function addSection() {
+    const id = createId("section");
+    setShortcuts((current) => appendSection(current, id, NEW_SECTION_NAME));
+    return id;
+  }
+
+  function renameSectionTo(id, name) {
+    setShortcuts((current) => renameSection(current, id, name));
+  }
+
+  // Deletes the line, not the links: everything below it joins the section above. This is the
+  // reason nothing in this feature needs a confirmation dialog.
+  function deleteSection(id) {
+    setShortcuts((current) => removeSection(current, id));
+    notify("分区已删除，链接已并入上一区");
   }
 
   function dissolveFolder(ref) {
@@ -312,6 +296,7 @@ export function useShortcuts(notify) {
     dropIndicator: dropPlan?.kind === DROP_REORDER ? dropPlan : null,
     dragStart, dragMove, dragEnd, resetDragState,
     addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder,
+    addSection, renameSectionTo, deleteSection,
     replaceAll, mergeIn,
   };
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { countLinks } from "../lib/sections";
 import { hasSiteAccess, requestSiteAccess, revokeSiteAccess } from "../lib/site-access";
 import { refreshSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
@@ -84,9 +85,7 @@ export function useSiteAccess(shortcuts, ready) {
     void writeDismissed();
   }, []);
 
-  const hasLinks = shortcuts.some((item) => item.type === "folder"
-    ? (item.children?.length ?? 0) > 0
-    : true);
+  const hasLinks = countLinks(shortcuts) > 0;
 
   return {
     granted,

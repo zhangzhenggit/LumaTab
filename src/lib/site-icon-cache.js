@@ -1,9 +1,13 @@
 import { ICON_CACHE_NAME } from "./icon-cache-keys.js";
+import { isLink } from "./sections.js";
 
+// Explicitly `isLink`, not "anything that is not a folder". The grid also carries section
+// markers, which have no URL, and treating one as a link sends an undefined through the whole
+// icon pipeline.
 function visitLinks(items, callback) {
   for (const item of items) {
     if (item.type === "folder") visitLinks(item.children ?? [], callback);
-    else callback(item);
+    else if (isLink(item)) callback(item);
   }
 }
 
@@ -22,9 +26,10 @@ function iconFields(found, existing) {
 // Icons only ever get added, never revoked: a tile that already drew artwork keeps it, so the
 // grid never flickers back to a letter because one later lookup came up empty.
 function applyIconUrls(items, icons) {
-  return items.map((item) => (item.type === "folder"
-    ? { ...item, children: applyIconUrls(item.children ?? [], icons) }
-    : { ...item, ...iconFields(icons.get(item.id), item) }));
+  return items.map((item) => {
+    if (item.type === "folder") return { ...item, children: applyIconUrls(item.children ?? [], icons) };
+    return isLink(item) ? { ...item, ...iconFields(icons.get(item.id), item) } : item;
+  });
 }
 
 async function urlHash(value) {

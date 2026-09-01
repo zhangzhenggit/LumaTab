@@ -70,10 +70,18 @@ export function planDrop(point, cells, { sourceId, sourceType }) {
   const hit = targets.reduce((best, cell) => (centreGap(point, cell) < centreGap(point, best) ? cell : best));
 
   // Only a link can be merged, and folders never nest, so dragging a folder is always a reorder.
+  // A section marker is not a tile and can absorb nothing, so it is never a merge target either.
   const mergeable = sourceType === "link" && (hit.type === "link" || hit.type === "folder");
   if (mergeable && isInside(point, hit.icon, MERGE_PADDING)) {
     return { kind: DROP_MERGE, targetId: hit.id, side: null };
   }
+
+  // An empty section is aimed at through a placeholder cell that carries the marker's own id, so
+  // the marker itself becomes a drop target. Its two sides are not symmetric the way a tile's
+  // are: the marker sits *between* two sections, so "before" would drop the link into the section
+  // above the one it is visibly hovering. The only reading of that placeholder anyone has is
+  // "put it in here", so a marker is always an `after`.
+  if (hit.type === "section") return { kind: DROP_REORDER, targetId: hit.id, side: "after" };
 
   return { kind: DROP_REORDER, targetId: hit.id, side: point.x < centre(hit).x ? "before" : "after" };
 }

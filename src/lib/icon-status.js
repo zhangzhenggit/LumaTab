@@ -14,6 +14,8 @@ export function iconStatus(items) {
   const visit = (list) => {
     for (const item of list) {
       if (item.type === "folder") { visit(item.children ?? []); continue; }
+      // Section markers are not links and have no icon to be missing.
+      if (item.type !== "link") continue;
       // A link set to a letter tile on purpose is not a missing icon.
       if (item.iconMode === "generated") continue;
       total += 1;

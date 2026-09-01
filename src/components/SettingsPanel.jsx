@@ -3,7 +3,7 @@ import { ArrowClockwise, ArrowCounterClockwise, Check, DownloadSimple, Globe, Up
 import { Aurora } from "./Aurora";
 import { wallpaperThumbnail } from "../lib/background";
 import { GRADIENTS } from "../lib/background-cache-keys";
-import { validateShortcutPayload } from "../hooks/useShortcuts";
+import { cleanForExport, validateShortcutPayload } from "../lib/shortcuts-file";
 import { iconStatus, iconSummary } from "../lib/icon-status";
 
 function formatDate(startDate) {
@@ -146,16 +146,11 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
   }
 
   function exportData() {
-    // Strip the underscore-prefixed runtime fields (resolved icon blobs and the like) so the
-    // file holds only what a future import actually needs.
-    const clean = (items) => items.map((item) => item.type === "folder"
-      ? { type: "folder", name: item.name, children: clean(item.children ?? []) }
-      : { type: "link", name: item.name, url: item.url, iconMode: item.iconMode });
     const payload = {
       app: "LumaTab",
       version: 1,
       exportedAt: new Date().toISOString(),
-      shortcuts: clean(shortcuts),
+      shortcuts: cleanForExport(shortcuts),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
