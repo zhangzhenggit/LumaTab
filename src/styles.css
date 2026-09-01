@@ -719,23 +719,26 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 .shortcut__caret--before { left: -2px; }
 .shortcut__caret--after { right: -2px; }
-/* Two changes for the open folder, both because it is the one surface here that is not a
-   photograph and not at the top of the stack.
+/* The open folder is the one surface here that is not a photograph, so the caret changes twice.
 
-   Colour: white with a dark glow is exactly right over a picture and invisible on a near-white
-   card, so in there it flips to the system blue the rest of the app uses for a live target.
+   Colour, because white with a dark glow is exactly right over a picture and invisible on a
+   near-white card: in there it is the system blue the rest of the app uses for a live target.
 
-   Height: the caret cannot win the z-order in here. `.folder-panel` carries a backdrop-filter,
-   which creates a stacking context, so the caret's z-index 1000 is clamped inside a surface that
-   has to stay *below* the drag ghost — and raising the panel instead would bury the ghost, which
-   is worse. The 60px caret sat exactly in the icon band, which is precisely where the ghost is.
-   Running it the full height of the cell puts half of it clear of a 60px ghost, and a tall bar
-   does not read as a row divider in here the way it would in a multi-row grid. */
+   Weight, because 4px of saturated blue on a small pale card is a slab. On the wallpaper the bar
+   needs that much body to survive the texture behind it; here it has a plain surface to sit on
+   and 2.5px reads perfectly.
+
+   It briefly ran the full height of the cell, to keep part of it clear of the drag ghost — the
+   caret cannot win the z-order in here, because `.folder-panel` carries a backdrop-filter and
+   that creates a stacking context, clamping its `z-index: 1000` inside a surface that has to
+   stay below the ghost. But the ghost is centred on the cursor and the caret sits at the *edge*
+   of the target cell, so the two are half a cell apart except at the exact instant the pointer
+   crosses a boundary. A 116px bar on every drag was a heavy price for that one frame. */
 .folder-panel .shortcut__caret {
-  top: 2px;
-  height: calc(var(--cell-size) - 4px);
+  width: 2.5px;
+  border-radius: 1.5px;
   background: #0a84ff;
-  box-shadow: 0 0 10px rgba(10, 132, 255, .45);
+  box-shadow: 0 0 8px rgba(10, 132, 255, .4);
 }
 @keyframes caret-in {
   from { opacity: 0; transform: scaleY(.55); }
