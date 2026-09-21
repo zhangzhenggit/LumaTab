@@ -1,5 +1,9 @@
 import { createId, normalizeUrl } from "./icons.js";
 import { isSection, SECTION } from "./sections.js";
+
+// Every value iconMode may hold. Something outside this list is not rejected — it is read as
+// "auto", because a file written by a newer version must still import into an older one.
+const ICON_MODES = ["auto", "generated", "custom"];
 import { normalizeSectionAccent, normalizeSectionIcon } from "./section-icons.js";
 
 // Reading and writing the export file. Pulled out of useShortcuts because none of it is stateful
@@ -40,7 +44,13 @@ export function validateShortcutPayload(payload) {
       type: "link",
       name,
       url: normalizeUrl(String(item.url ?? "")),
-      iconMode: item.iconMode === "generated" ? "generated" : "auto",
+      // "custom" travels with the file even though the picture itself cannot — those bytes live
+      // in Cache Storage, which an export does not carry. Re-imported on the same machine the
+      // cache is still there and the icon comes straight back; on another machine there is
+      // nothing under that key, so the link is simply one of the missing ones and resolves from
+      // the site like any other. Rewriting it to "auto" on the way in would throw the choice
+      // away in the one case where it still works.
+      iconMode: ICON_MODES.includes(item.iconMode) ? item.iconMode : "auto",
     };
   });
 

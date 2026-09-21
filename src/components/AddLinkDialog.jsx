@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { ArrowClockwise, CircleNotch, X } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowClockwise, CircleNotch, UploadSimple, X } from "@phosphor-icons/react";
 import { BrandIcon, iconAppearance } from "./BrandIcon";
 import { iconProps } from "./ShortcutTile";
 import { ACCENTS, MAX_MONOGRAM_GLYPHS, monogramFor, normalizeUrl, trimMonogram } from "../lib/icons";
-import { resolveIconPreview } from "../lib/site-icon-cache";
+import { CUSTOM_ICON_TYPES, resolveIconPreview, storeCustomIcon } from "../lib/site-icon-cache";
 
 // The empty-state preview stands in for a real tile, so it carries the product's own identity
 // rather than the word "示例" — a placeholder that named itself made the preview read as a
@@ -22,6 +22,7 @@ export function AddLinkDialog({ open, item = null, onClose, onSubmit }) {
   const [fetching, setFetching] = useState(false);
   const [fetchNote, setFetchNote] = useState("");
   const [editingMonogram, setEditingMonogram] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
@@ -32,11 +33,19 @@ export function AddLinkDialog({ open, item = null, onClose, onSubmit }) {
     setDraft({
       name: item?.name ?? "",
       url: item?.url ?? "",
-      iconMode: item?.iconMode === "generated" ? "generated" : "auto",
+      iconMode: item?.iconMode === "generated" || item?.iconMode === "custom" ? item.iconMode : "auto",
       accentColor: item?.accentColor ?? null,
       monogram: item?.monogram ?? "",
     });
-  }, [open, item]);
+    // Keyed on the item's *id*, never on the object. `item` comes from the shortcuts array, so it
+    // is a new object every time anything updates that array — and one of the things that updates
+    // it is the worker broadcasting resolved icons, which arrives on its own schedule while this
+    // dialog is open. Depending on the reference meant a background icon landing mid-edit reset
+    // the form: whatever had been typed, and any icon fetched or uploaded here, was thrown away
+    // and the dialog silently went back to the saved values. It is the same trap useBingWallpaper
+    // memoizes its return value for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, item?.id]);
 
   // A different URL invalidates whatever was fetched for the previous one.
   useEffect(() => {
@@ -90,6 +99,34 @@ export function AddLinkDialog({ open, item = null, onClose, onSubmit }) {
       setFetchNote(icon ? "已获取网站图标" : "未找到可用图标，将使用字母图标");
       // Getting artwork only helps if the tile is allowed to show it.
       if (icon) setDraft((current) => ({ ...current, iconMode: "auto" }));
+    } finally {
+      setFetching(false);
+    }
+  }
+
+  async function pickCustomIcon(event) {
+    const file = event.target.files?.[0];
+    // Cleared immediately so picking the same file twice in a row still fires a change event.
+    event.target.value = "";
+    if (!file) return;
+    let target;
+    try {
+      target = normalizeUrl(draft.url);
+    } catch {
+      setFetchNote("请先填写有效网址");
+      return;
+    }
+    setFetching(true);
+    setFetchNote("");
+    try {
+      const icon = await storeCustomIcon(target, file);
+      setFetched(icon);
+      setFetchNote("已使用自定义图片");
+      // Uploading a picture is the choice; the radio follows it rather than having to be set
+      // separately, which is the same thing fetching an icon does for "auto".
+      setDraft((current) => ({ ...current, iconMode: "custom" }));
+    } catch (uploadError) {
+      setFetchNote(uploadError.message);
     } finally {
       setFetching(false);
     }
@@ -191,7 +228,14 @@ export function AddLinkDialog({ open, item = null, onClose, onSubmit }) {
           <fieldset>
             <legend>图标方式</legend>
             <label className="radio"><input type="radio" name="iconMode" value="auto" checked={draft.iconMode === "auto"} onChange={() => setDraft((current) => ({ ...current, iconMode: "auto" }))} /><span><b>自动读取</b><small>优先使用网站图标，失败时显示字母图标</small></span></label>
-            <label className="radio"><input type="radio" name="iconMode" value="generated" checked={draft.iconMode === "generated"} onChange={() => setDraft((current) => ({ ...current, iconMode: "generated" }))} /><span><b>字母图标</b><small>按名称生成字母，底色由网址决定</small></span></label>
+            <label className="radio"><input type="radio" name="iconMode" value="generated" checked={draft.iconMode === "generated"} onChange={() => setDraft((current) => ({ ...current, iconMode: "generated" }))} /><span><b>字母图标</b><small>按名称生成字母，字母颜色由网址决定</small></span></label>
+            {/* Selectable only once a picture exists: the radio reports which icon the tile uses,
+                and an empty "custom" would report one that is not there. Choosing the file is
+                what turns it on, through the button below. */}
+            <label className={`radio ${draft.iconMode === "custom" || fetched?.custom ? "" : "radio--muted"}`}>
+              <input type="radio" name="iconMode" value="custom" checked={draft.iconMode === "custom"} disabled={!fetched?.custom && draft.iconMode !== "custom"} onChange={() => setDraft((current) => ({ ...current, iconMode: "custom" }))} />
+              <span><b>自定义图片</b><small>使用你上传的图片，不再自动更新</small></span>
+            </label>
           </fieldset>
           <div className="fetch-icon">
             <button className="ghost-button" type="button" onClick={fetchIcon} disabled={fetching || !draft.url}>
@@ -199,6 +243,10 @@ export function AddLinkDialog({ open, item = null, onClose, onSubmit }) {
                 ? <><CircleNotch className="spin" size={16} weight="bold" />正在获取…</>
                 : <><ArrowClockwise size={16} weight="bold" />获取网站图标</>}
             </button>
+            <button className="ghost-button" type="button" onClick={() => fileRef.current?.click()} disabled={fetching || !draft.url}>
+              <UploadSimple size={16} weight="bold" />上传图片
+            </button>
+            <input ref={fileRef} type="file" accept={CUSTOM_ICON_TYPES.join(",")} hidden onChange={pickCustomIcon} />
             {fetchNote && <span className="fetch-icon__note">{fetchNote}</span>}
           </div>
           </>}

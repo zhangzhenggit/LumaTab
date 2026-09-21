@@ -222,7 +222,10 @@ export function useShortcuts(notify) {
     if (!values.name) throw new Error("请输入名称");
     const link = { id: createId("link"), type: "link", name: values.name, url: normalizeUrl(values.url), iconMode: values.iconMode, accentColor: values.accentColor ?? null, monogram: values.monogram ?? null };
     setShortcuts((current) => [...current, link]);
-    if (link.iconMode === "auto") {
+    // Not only "auto": a custom icon was written to the shared cache by the dialog, and this is
+    // the read that attaches it to the item. prepareSiteIcons only asks the worker for icons it
+    // did *not* find, so a custom one costs no request.
+    if (link.iconMode !== "generated") {
       void prepareSiteIcons([link]).then(([prepared]) => {
         setShortcuts((current) => current.map((item) => item.id === link.id ? prepared : item));
       });
@@ -257,7 +260,7 @@ export function useShortcuts(notify) {
       return editLink(item);
     }));
     notify("修改已保存");
-    if (editorItem.type === "link" && values.iconMode === "auto") {
+    if (editorItem.type === "link" && values.iconMode !== "generated") {
       const candidate = editLink(editorItem);
       void prepareSiteIcons([candidate]).then(([prepared]) => {
         setShortcuts((current) => current.map((item) => {

@@ -1,4 +1,5 @@
 import { ICON_CACHE_NAME } from "./icon-cache-keys.js";
+import { analyzeIconBlob } from "./image-visibility.js";
 import { isLink } from "./sections.js";
 
 // Explicitly `isLink`, not "anything that is not a folder". The grid also carries section
@@ -20,6 +21,7 @@ function iconFields(found, existing) {
     _iconAccent: found?.accent ?? existing._iconAccent ?? null,
     _iconNativeSize: found?.nativeSize ?? existing._iconNativeSize ?? 0,
     _iconFullBleed: found?.fullBleed ?? existing._iconFullBleed ?? false,
+    _iconCustom: found?.custom ?? existing._iconCustom ?? false,
   };
 }
 
@@ -68,12 +70,99 @@ async function readCachedIcons(sites) {
         accent: response.headers.get("x-lumatab-accent"),
         nativeSize: Number(response.headers.get("x-lumatab-native-size")) || 0,
         fullBleed: response.headers.get("x-lumatab-full-bleed") === "1",
+        custom: response.headers.get("x-lumatab-custom") === "1",
       });
     } catch {
       // One unreadable entry must not cost the other tiles their icons.
     }
   }));
   return urls;
+}
+
+// --- custom icons -------------------------------------------------------------------------------
+//
+// A picture the user chose, written into the same cache under the same key as a resolved one, so
+// nothing downstream has to know the difference: the grid, the folder preview, the drag ghost and
+// the edit dialog all read it exactly as they read a favicon.
+//
+// It exists because resolution cannot win every time and the failures are not random — four links
+// to different views of one Jira instance all resolve to the same 16px mark, and no amount of
+// work in the worker can turn that into four distinguishable tiles. This is the only way out of
+// that, and it is why it was the first icon change made.
+//
+// Uploads are **re-encoded, never stored as picked**. Whatever the file was, what lands in the
+// cache is a PNG this page rendered at no more than 256px. That caps what a big photo costs in
+// Cache Storage, gives `nativeSize` a meaning consistent with a fetched icon, and means the bytes
+// the tile loads are bytes we produced rather than an arbitrary file from disk.
+const CUSTOM_ICON_MAX_BYTES = 4 * 1024 * 1024;
+// Four times the 60px tile: enough for a 2x display with room to spare, small enough that a
+// hundred of them are a rounding error on disk.
+const CUSTOM_ICON_MAX_PX = 256;
+// SVG is deliberately not accepted. A vector would have to be sanitised before it could be put
+// in an <img> — an unsanitised one can reference external URLs, and the new-tab document is not
+// allowed to make network requests at all — and that sanitiser lives in the worker. Raster only
+// keeps the whole feature inside the page with nothing to get wrong.
+export const CUSTOM_ICON_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp"];
+
+async function reencodeIcon(file) {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const longest = Math.max(bitmap.width, bitmap.height);
+    const scale = Math.min(1, CUSTOM_ICON_MAX_PX / longest);
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext("2d", { willReadFrequently: false });
+    context.imageSmoothingQuality = "high";
+    context.drawImage(bitmap, 0, 0, width, height);
+    // PNG, always: the source may have an alpha channel and a bare mark on transparency is the
+    // case the inset presentation exists for. Re-encoding to JPEG would fill it with black.
+    return { blob: await canvas.convertToBlob({ type: "image/png" }), width, height };
+  } finally {
+    bitmap.close();
+  }
+}
+
+// Stores `file` as the icon for `pageUrl` and returns it in the same shape a cached icon comes
+// back in, so the caller can show it immediately. Throws with a message meant for the user.
+export async function storeCustomIcon(pageUrl, file) {
+  if (!CUSTOM_ICON_TYPES.includes(file.type)) throw new Error("只支持 PNG、JPG、WebP、GIF 图片");
+  if (file.size > CUSTOM_ICON_MAX_BYTES) throw new Error("图片太大了，请换一张 4MB 以内的");
+
+  let encoded;
+  try {
+    encoded = await reencodeIcon(file);
+  } catch {
+    throw new Error("这张图片无法读取，请换一张");
+  }
+
+  const { fullBleed, accentColor } = await analyzeIconBlob(encoded.blob)
+    .catch(() => ({ fullBleed: false, accentColor: null }));
+
+  const headers = {
+    "content-type": "image/png",
+    "cache-control": "no-store",
+    "x-lumatab-fetched-at": String(Date.now()),
+    // Recorded on the entry itself rather than in a list somewhere else, for the same reason the
+    // wallpaper records its variant as a header: two places to look is two places to fall out of
+    // step. It is what stops a later refresh overwriting a picture the user chose.
+    "x-lumatab-custom": "1",
+    "x-lumatab-native-size": String(Math.min(encoded.width, encoded.height)),
+  };
+  if (fullBleed) headers["x-lumatab-full-bleed"] = "1";
+  if (accentColor) headers["x-lumatab-accent"] = accentColor;
+
+  const cache = await caches.open(ICON_CACHE_NAME);
+  await cache.put(await iconCacheRequest(pageUrl), new Response(encoded.blob, { headers }));
+
+  return {
+    url: URL.createObjectURL(encoded.blob),
+    source: "custom",
+    accent: accentColor,
+    nativeSize: Math.min(encoded.width, encoded.height),
+    fullBleed,
+    custom: true,
+  };
 }
 
 export async function prepareSiteIcons(items) {
@@ -110,7 +199,10 @@ export async function refreshSiteIcons(items) {
   if (!globalThis.chrome?.runtime?.sendMessage) return;
   const sites = [];
   visitLinks(items, (item) => {
-    if (item.iconMode !== "generated") sites.push({ id: item.id, url: item.url });
+    // A custom icon is exempt from the one operation that ignores the cache. Everywhere else the
+    // worker is only ever asked for icons that are *missing*, and a custom one never is; this is
+    // the single path that would otherwise fetch over the top of a picture the user chose.
+    if (item.iconMode !== "generated" && item.iconMode !== "custom") sites.push({ id: item.id, url: item.url });
   });
   if (!sites.length) return;
   await chrome.runtime.sendMessage({

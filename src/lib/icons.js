@@ -15,6 +15,75 @@ export const ACCENTS = [
   "#8e8e94",
 ];
 
+// The same eleven colours as ink on a white bed rather than as a fill behind white letters.
+//
+// A letter tile used to be a saturated square with white glyphs on it, and every colour above was
+// chosen for that job. Turned inside out — white bed, coloured glyph — five of them stop working:
+// #23cfa8, #2dc3a1 and #51ba5b are light enough that a monogram in them on white is barely there,
+// and #8e8e94 is grey on off-white. A colour that is right as a background is not automatically
+// right as text, and the fix is not a second hand-picked palette (that is the patchwork rule
+// every other derived value here exists to avoid) but the same hue taken to a lightness that can
+// carry text. Saturation comes up a little with it, because darkening alone turns a bright hue
+// muddy.
+//
+// The target is a *contrast ratio*, not a lightness, and that distinction is the whole of it.
+// Clamping HSL lightness to one number was the first attempt and it failed for five of the
+// eleven: HSL lightness is not perceptual, so #4060f2 at L=0.38 lands at 10.4:1 against white
+// while #23cfa8 at the same L lands at 2.7:1 — the green and the cyan stayed invisible. Solving
+// for the ratio instead means every monogram on the page has the same optical weight and only
+// the hue differs, which is what a grid of them should look like.
+//
+// 5.2:1 is comfortably past WCAG's 4.5 for body text, and a test pins it.
+const INK_CONTRAST = 5.2;
+
+function relativeLuminance(hex) {
+  const channel = (value) => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = [1, 3, 5].map((i) => channel(parseInt(hex.slice(i, i + 2), 16) / 255));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastOnWhite(hex) {
+  return 1.05 / (relativeLuminance(hex) + 0.05);
+}
+
+function hexToHsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: (h * 60 + 360) % 360, s, l };
+}
+
+function hslToHex({ h, s, l }) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(h / 60) % 6];
+  return `#${[r, g, b].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
+export function accentInk(hex) {
+  if (contrastOnWhite(hex) >= INK_CONTRAST) return hex;
+  // Saturation comes up as lightness comes down, because darkening a bright hue on its own turns
+  // it muddy — the colour has to stay recognisably the same one it is in the section heading.
+  const { h, s } = hexToHsl(hex);
+  const saturation = Math.min(1, s + 0.1);
+  // Contrast against white rises monotonically as lightness falls, so a dozen halvings land
+  // within a rounding error of the exact answer and cannot fail to terminate.
+  let low = 0;
+  let high = hexToHsl(hex).l;
+  for (let i = 0; i < 12; i++) {
+    const mid = (low + high) / 2;
+    if (contrastOnWhite(hslToHex({ h, s: saturation, l: mid })) >= INK_CONTRAST) low = mid;
+    else high = mid;
+  }
+  return hslToHex({ h, s: saturation, l: low });
+}
+
 function stableHash(value) {
   let hash = 0;
   for (const character of value) hash = (hash * 31 + character.codePointAt(0)) >>> 0;

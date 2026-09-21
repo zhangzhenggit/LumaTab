@@ -106,7 +106,7 @@ export function ShortcutGhost({ item, count = 1 }) {
 export function AddTile({ wave = 0, onClick }) {
   return (
     <button className="shortcut" type="button" style={{ "--wave": wave }} aria-label="添加快捷方式" onClick={onClick}>
-      <span className="shortcut__icon shortcut__icon--add"><Plus size={24} weight="regular" aria-hidden="true" /></span>
+      <span className="shortcut__icon shortcut__icon--add"><Plus size={22} weight="bold" aria-hidden="true" /></span>
     </button>
   );
 }

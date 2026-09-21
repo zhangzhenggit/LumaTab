@@ -603,7 +603,19 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .shortcut__icon--inset {
   background: linear-gradient(180deg, #fff, #f7f7f7);
 }
-.shortcut__icon--letter { background: var(--tile-accent, #4060f2); }
+/* A letter tile wears the same bed as a bare mark, and puts its accent in the glyphs instead of
+   in the fill. It shipped the other way round — a saturated square with white letters — and in a
+   real grid that made the fallback the loudest thing on the page: a monogram carries the least
+   information of any tile and was outshouting every brand mark next to it. Worse, the accent is
+   keyed on the host, so a column of unresolved intranet tools came out as a row of unrelated
+   flat colours, which is the patchwork every other rule here exists to prevent.
+   White bed, coloured glyph: the whole grid becomes one material with one variable — the mark —
+   and the colour still does its real job, which is telling links to one site from links to
+   another at a glance. */
+.shortcut__icon--letter {
+  background: linear-gradient(180deg, #fff, #f7f7f7);
+}
+.shortcut__icon--letter .letter-icon { color: var(--tile-accent, #4060f2); }
 /* Also thin glass: a folder tile and the Add tile are 60px of almost pure surface sitting on the
    wallpaper, with no text to protect. At 80% white they were opaque white squares. */
 /* No --glass-rim here any more: --tile-bevel is the same recipe applied to every tile in the
@@ -614,7 +626,17 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   backdrop-filter: var(--glass-thin-filter);
   -webkit-backdrop-filter: var(--glass-thin-filter);
 }
-.shortcut__icon--add { color: var(--t3); }
+/* The Add tile is the one tile with no artwork and no caption, so the "+" IS the tile — and at
+   --t3 on a pane whose tone follows the wallpaper it was a grey square with a smudge in it,
+   which is what "影视仓旁边那个灰方块" was pointing at. It cannot take a fixed ink: the bed is
+   55% white over a blur, so over a dark wallpaper it is mid grey and over a light one it is near
+   white. What works on both is a glyph that carries its own contrast — a dark mark with a white
+   halo under it, the same trick the captions use in reverse. */
+.shortcut__icon--add {
+  color: var(--t2);
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, .85));
+}
+.shortcut:hover .shortcut__icon--add { color: var(--t1); }
 
 .shortcut__label {
   display: block;
@@ -1290,9 +1312,14 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   width: 100%;
   height: 100%;
   place-items: center;
-  color: #fff;
+  /* Overridden per variant: the colour is the accent on a white bed. The fallback is only for
+     the in-dialog editor, which draws its own surface. */
+  color: var(--tile-accent, #4060f2);
   font-size: 22px;
-  font-weight: 500;
+  /* Half a step heavier than the white-on-colour version needed. Dark ink on white has less
+     optical weight than white ink on a saturated fill at the same weight, and a monogram that
+     reads lighter than the brand marks beside it looks like a placeholder. */
+  font-weight: 600;
   line-height: 1;
   text-align: center;
 }
@@ -1335,15 +1362,17 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   /* Same curve as the tiles it previews, at the same 22.37% share of a 20px cell. */
   border-radius: 4.5px;
   corner-shape: var(--icon-corner);
-  /* Same derived bed as the full-size tile, so a folder previews what it actually contains. */
-  background: var(--tile-accent, rgba(255, 255, 255, .82));
+  /* Same bed as the full-size tile, so a folder previews what it actually contains. */
+  background: rgba(255, 255, 255, .82);
 }
 .folder-preview__cell > * { width: 100%; height: 100%; }
 /* Artwork with its own background fills its chip, exactly as it fills a full tile. A bare mark is
    inset instead: at 20px, a transparent logo drawn edge to edge runs into its neighbours and the
    four chips read as one smudge rather than as four icons. */
 .folder-preview__cell .brand-icon[data-fit="contain"] { padding: 2px; }
-.folder-preview__cell--letter { background: var(--tile-accent); }
+/* Same rule as the full tile: bed stays white, the accent goes into the glyphs. */
+.folder-preview__cell--letter { background: linear-gradient(180deg, #fff, #f7f7f7); }
+.folder-preview__cell--letter .letter-icon { color: var(--tile-accent, #4060f2); }
 .folder-preview__cell .brand-icon { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
 .folder-preview__cell .letter-icon { font-size: 9px; font-weight: 700; }
 .folder-preview__cell .letter-icon[data-length="1"] { font-size: 11px; }
@@ -1840,8 +1869,16 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   font-size: 11px;
 }
 
-.fetch-icon { display: flex; align-items: center; gap: 10px; margin-top: -4px; }
+/* Two buttons and a note. It wraps rather than shrinking the buttons: the note is often a whole
+   sentence ("图片太大了，请换一张 4MB 以内的") and squeezing the controls to fit it would make the
+   row jump every time a different message came back. */
+.fetch-icon { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: -4px; }
 .fetch-icon__note { color: var(--t3); font-size: 12px; }
+/* "自定义图片" before a picture has been chosen. Present, so the option is discoverable and the
+   row below reads as the way to reach it — dimmed rather than hidden, because an option that
+   appears only after you have already done the thing teaches nobody it exists. */
+.radio--muted { opacity: .45; }
+.radio--muted input { cursor: not-allowed; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 900ms linear infinite; }
