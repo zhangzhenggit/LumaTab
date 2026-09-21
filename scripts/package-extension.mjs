@@ -60,6 +60,15 @@ async function main() {
   await cp(SOURCE, STAGING, { recursive: true });
   for (const name of EXCLUDED) await rm(resolve(STAGING, name), { recursive: true, force: true });
 
+  // The manifest's `key` exists only so the unpacked build keeps one extension ID no matter which
+  // folder it is loaded from — Chrome otherwise hashes the ID from the path, and moving the
+  // checkout once wiped a whole grid of shortcuts. The store item has its own key, and an upload
+  // that names a different one is rejected, so it never travels in the zip.
+  const manifestPath = resolve(STAGING, "manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  delete manifest.key;
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+
   const files = (await walk(STAGING)).sort();
   // Belt and braces: verify, do not assume. A rename of the data directory must fail loudly here
   // rather than quietly shipping personal bookmarks.
@@ -67,7 +76,6 @@ async function main() {
   if (leaked.length) throw new Error(`refusing to package personal data: ${leaked.join(", ")}`);
   if (!files.includes("manifest.json")) throw new Error("manifest.json missing from the package");
 
-  const manifest = JSON.parse(await readFile(resolve(STAGING, "manifest.json"), "utf8"));
   const outPath = resolve(`dist/lumatab-${manifest.version}.zip`);
 
   const entries = [];

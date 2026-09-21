@@ -6,6 +6,7 @@
   "description": "一个干净的新标签页：每日壁纸、可拖放的快捷方式与分组。无广告，无账号，不收集数据。",
   "homepage_url": "https://zhengnest.com/projects/lumatab",
   "minimum_chrome_version": "109",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyUuJgzGim2ozL47ORG+wG1hmF1FjsBaqTqt6cngCqd5oKGqIDu/cITlUiJL3KvKF4QAG+bpSv37VAhCI08k3wo5zev+5u2o2nRTxrtUQD1mwEMt8F8qr+UCIBxMFMWKxcjSDPxuM0BRpAOVMTsBZCpjZPUpfkeIElGkDIrLd+H7w3UN1M5S4kJFcZQvxSf94ohj5/I5erFeg4tiMquSS6BZ1DVexL3G5r8eSqhaJlL7fKJEZFUqK5Dn2KslIXbj5biyvz2P08d4aCJZri27y/ycIwwWNW9tilSrVGNL5SXmrIaF6OlkSuBnbhzmg6CXUhG0Z4z8vPJC03/EC+dXw1QIDAQAB",
   "permissions": [
     "storage",
     "favicon",

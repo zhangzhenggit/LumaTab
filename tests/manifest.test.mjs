@@ -68,3 +68,15 @@ test("nothing bundles shortcut data any more", async () => {
   const storage = await readFile(new URL("../src/lib/storage.js", import.meta.url), "utf8");
   assert.doesNotMatch(storage, /fallback/);
 });
+
+// An unpacked extension's ID is hashed from the folder it is loaded from unless the manifest
+// carries a `key`, and chrome.storage.local is keyed by that ID. Moving the checkout once turned
+// the dev build into a stranger with an empty grid, and removing the errored entry took the old
+// storage with it. The key pins the ID to itself; the packager strips it because the store item
+// has its own key and refuses an upload that names a different one.
+test("the manifest carries a key so the dev ID survives a moved checkout, and the store zip does not", async () => {
+  assert.match(manifest.key ?? "", /^MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA[A-Za-z0-9+/]+={0,2}$/,
+    "manifest.key must be a base64 SPKI RSA public key");
+  const packager = await readFile(new URL("../scripts/package-extension.mjs", import.meta.url), "utf8");
+  assert.match(packager, /delete manifest\.key/, "package-extension.mjs must strip the key before zipping");
+});
