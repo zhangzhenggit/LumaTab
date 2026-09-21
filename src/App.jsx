@@ -13,7 +13,7 @@ import { useNotice } from "./hooks/useNotice";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { useSiteAccess } from "./hooks/useSiteAccess";
 import { useWallpaperDrift } from "./hooks/useWallpaperDrift";
-import { Aurora } from "./components/Aurora";
+import { Silk } from "./components/Silk";
 import { needsDarkInk, wallpaperFilterStyle } from "./lib/background-cache-keys";
 import { findItem } from "./lib/shortcuts-tree";
 import { isCollapsed, isSection, sectionsOf } from "./lib/sections";
@@ -31,8 +31,12 @@ export function App({ initialWallpaper = null }) {
   // coming back from hidden resumes instead of jumping. The seed identifies the picture, not the
   // visit: it decides which direction this wallpaper drifts, and it has to stay the same across
   // every tab showing the same wallpaper. See useWallpaperDrift.
+  // A solid background is exempt: <Silk> animates the field itself, and zooming its canvas by a
+  // further 10% would resample what the shader just drew at full resolution — a photograph can
+  // afford that because it is already being scaled, a freshly rendered surface cannot.
   const driftRef = useWallpaperDrift(
-    wallpaperApi.backgroundMeta?.startDate ?? wallpaperApi.wallpaper.gradientColors?.join("") ?? "",
+    wallpaperApi.backgroundMeta?.startDate ?? "",
+    { skip: wallpaperApi.wallpaper.gradient },
   );
 
   const [addDialog, setAddDialog] = useState(false);
@@ -156,7 +160,7 @@ export function App({ initialWallpaper = null }) {
     <main className={`newtab ${lightBackground ? "newtab--light" : ""}`}>
       {/* Brightness and blur are filters on this element, so they scale the actual pixels
           instead of laying a veil over them — see wallpaperFilterStyle. A solid background
-          paints itself through <Aurora> rather than through this element's background-image,
+          paints itself through <Silk> rather than through this element's background-image,
           because it is three moving elements over a ramp rather than one flat gradient. */}
       <div
         ref={driftRef}
@@ -166,7 +170,7 @@ export function App({ initialWallpaper = null }) {
           ...wallpaperFilterStyle(tuning),
         }}
       >
-        {wallpaper.gradient && <Aurora colors={wallpaper.gradientColors} />}
+        {wallpaper.gradient && <Silk colors={wallpaper.gradientColors} />}
       </div>
       {/* Two tint ramps. They are empty on purpose: three attempts at a progressive backdrop blur
           in these bands all shipped and all came back as bug reports, because a masked

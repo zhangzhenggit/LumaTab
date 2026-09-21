@@ -56,35 +56,65 @@ test("gradient stops stay analogous so the backdrop recedes", () => {
   }
 });
 
-// The aurora blobs are derived, not authored, precisely so the two rules that keep a backdrop
-// recessive cannot be broken by hand-picking thirty-six new colours. This is the test that makes
+// The silk palette is derived, not authored, precisely so the two rules that keep a backdrop
+// recessive cannot be broken by hand-picking sixty new colours. This is the test that makes
 // "by construction" mean something.
-test("aurora blobs stay inside the gradient's own hue family", async () => {
-  const { auroraBlobs } = await import("../src/lib/background-cache-keys.js");
+test("every silk colour stays inside the gradient's own hue family", async () => {
+  const { silkPalette } = await import("../src/lib/background-cache-keys.js");
   for (const { key, colors } of GRADIENTS) {
-    const blobs = auroraBlobs(colors);
-    assert.equal(blobs.length, 3, `${key} did not produce three blobs`);
-    for (const blob of blobs) {
-      assert.match(blob, /^#[0-9a-f]{6}$/, `${key} produced an unrenderable blob colour`);
-      // Measured against the nearer stop: the recipes rotate ±22° off one stop or the other, and
-      // the stops themselves are already within 60° of each other.
-      const gap = Math.min(hueGap(blob, colors[0]), hueGap(blob, colors[1]));
-      assert.ok(gap <= 60, `${key} threw a blob ${gap.toFixed(0)}° out of its own family`);
+    const palette = silkPalette(colors);
+    assert.equal(palette.length, 5, `${key} did not produce a full palette`);
+    for (const shade of palette) {
+      assert.match(shade, /^#[0-9a-f]{6}$/, `${key} produced an unrenderable colour`);
+      // Measured against the nearer stop: the recipes rotate off one stop or the other, and the
+      // stops themselves are already within 60° of each other.
+      const gap = Math.min(hueGap(shade, colors[0]), hueGap(shade, colors[1]));
+      assert.ok(gap <= 60, `${key} threw ${shade} ${gap.toFixed(0)}° out of its own family`);
     }
   }
 });
 
-// Blobs are lighter than the ramp on purpose — that is what gives the surface volume — but a
-// solid background exists to sit clear of the tiles, and three pale blobs could quietly drag it
-// back into the band the tiles occupy. This is what forced the amber ramp deeper.
-test("aurora blobs lighten the surface without pushing it into the tiles' band", async () => {
-  const { auroraBlobs, gradientLuminance } = await import("../src/lib/background-cache-keys.js");
+// The palette spans further than the ramp it came from — that spread is where the relief comes
+// from — and a spread can drag the surface as a whole into the value band the tiles occupy. It
+// did: the first accent recipe (+30° hue, +0.10 saturation) turned amber's glint into a neon
+// yellow-green and took the preset from 0.21 to 0.275, inside the band.
+test("the silk palette as a whole clears the tiles' value band", async () => {
+  const { silkPalette, gradientLuminance } = await import("../src/lib/background-cache-keys.js");
   for (const { key, colors } of GRADIENTS) {
-    const base = gradientLuminance(colors);
-    // The blobs sit at 50% opacity, so the worst case a viewer sees is roughly this.
-    const lit = base + (gradientLuminance(auroraBlobs(colors)) - base) * 0.5;
-    assert.ok(lit > base, `${key} blobs darken the ramp instead of lifting it`);
-    assert.ok(lit < 0.25 || lit > 0.45, `${key} drifts into the tiles' value band once lit (${lit.toFixed(2)})`);
+    const mean = gradientLuminance(silkPalette(colors));
+    assert.ok(mean < 0.25 || mean > 0.45, `${key} sits in the tiles' value band once folded (${mean.toFixed(2)})`);
+  }
+});
+
+// The fallback is not decoration: it is what a machine with no WebGL sees permanently, and what
+// every machine sees for the frame before the first draw. It has to be renderable CSS built from
+// the same colours, so a preset cannot be visible as silk and broken as a ramp.
+test("every preset has a renderable flat ramp to fall back to", async () => {
+  const { silkRamp, silkPalette } = await import("../src/lib/background-cache-keys.js");
+  for (const { key, colors } of GRADIENTS) {
+    const ramp = silkRamp(colors);
+    assert.match(ramp, /^linear-gradient\(25deg, (#[0-9a-f]{6}(?: \d+%)?, ){3}#[0-9a-f]{6}\)$/, `${key} has no usable fallback`);
+    for (const shade of silkPalette(colors).slice(0, 4)) {
+      assert.ok(ramp.includes(shade), `${key} fallback drifted from the shader's own colours`);
+    }
+  }
+});
+
+// A field is only deterministic if its seed is. Two tabs showing the same preset must show the
+// same folds — the wallpaper drift had to learn this one level up, where a per-visit direction
+// meant two tabs on the same photo drifting apart.
+test("a preset's folds are the same every time and different per preset", async () => {
+  const { silkSeed } = await import("../src/lib/background-cache-keys.js");
+  const seen = new Map();
+  for (const { key, colors } of GRADIENTS) {
+    const seed = silkSeed(colors);
+    assert.deepEqual(seed, silkSeed(colors), `${key} rolls a new field per call`);
+    const signature = `${seed.x.toFixed(3)}/${seed.y.toFixed(3)}`;
+    assert.ok(!seen.has(signature), `${key} looks at the same patch of noise as ${seen.get(signature)}`);
+    seen.set(signature, key);
+    // Folds run across the page. A steep angle reads as the surface sliding off it, which is the
+    // same reason the photograph's drift angles are all within 40° of horizontal.
+    assert.ok(Math.abs(seed.angle) <= 0.45, `${key} turns its folds ${seed.angle.toFixed(2)}rad off level`);
   }
 });
 

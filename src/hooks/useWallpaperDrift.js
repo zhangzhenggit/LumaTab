@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import { createSilkRenderer } from "../lib/silk.js";
+
 // A very slow pan across the wallpaper, driven from our own clock rather than from the document
 // timeline.
 //
@@ -63,19 +65,6 @@ const EASE_SPAN = 0.16;
 // the same one every day.
 const ANGLES = [20, -20, 40, -40, 140, -140, 160, -160];
 
-// Solid backgrounds. The ramp itself cannot move — translating a linear gradient gives you the
-// same gradient very slightly moved — so the three aurora blobs are the only thing on a solid
-// background that can drift at all. They travel on ellipses rather than back and forth, which
-// needs no feathering because an ellipse never reverses; three different periods, deliberately
-// not multiples of each other, so the composition never repeats within a visit. The wallpaper
-// layer used to carry all three as one unit, which moves a still image around rather than
-// animating anything.
-const BLOB_MOTION = [
-  { period: 37_000, x: 4.5, y: 3.0, phase: 0 },
-  { period: 46_000, x: -3.5, y: 4.0, phase: 0.33 },
-  { period: 29_000, x: 3.0, y: -3.5, phase: 0.66 },
-];
-
 // Deterministic, and deliberately so. Choosing a direction at random per visit would put
 // consecutive tabs showing the same wallpaper on different paths, which is the "it looks like it
 // jumped" complaint re-invented one level up. Keyed on the picture's own identity instead, the
@@ -120,12 +109,12 @@ function runClampedClock(onFrame) {
 // `seed` identifies the wallpaper, not the visit — a photo's start date, or a solid background's
 // colours. Changing it starts a new move from the beginning, which is what a new picture wants,
 // and replays the arrival zoom for it.
-export function useWallpaperDrift(seed = "") {
+export function useWallpaperDrift(seed = "", { skip = false } = {}) {
   const ref = useRef(null);
 
   useEffect(() => {
     const node = ref.current;
-    if (!node) return undefined;
+    if (!node || skip) return undefined;
 
     const radians = (driftAngleFor(seed) * Math.PI) / 180;
     // Both components stay under PAN, and the frame's overhang at progress p is 5p% per side
@@ -155,37 +144,64 @@ export function useWallpaperDrift(seed = "") {
       node.style.scale = "";
       node.style.translate = "";
     };
-  }, [seed]);
+  }, [seed, skip]);
 
   return ref;
 }
 
-// Drifts the blobs inside an <Aurora>. Separate from the wallpaper's own drift because it only
-// ever runs on a solid background — a photograph has no blobs — and because the two want
-// completely different motion: one traverse and reverse, three independent orbits.
-export function useAuroraDrift(active = true) {
+// Drives the <Silk> canvas. Separate from the wallpaper's own drift because it only ever runs on
+// a solid background, and because the two want completely different motion: the photograph is a
+// static image being panned, the silk is a field being re-evaluated, so what advances here is the
+// shader's own time rather than a transform.
+//
+// Two things this must get right and the blob version did not have to.
+//
+// It always draws frame zero, whether or not the clock ever starts. `runClampedClock` refuses to
+// start under `prefers-reduced-motion`, and for a transform that is exactly right — the element
+// simply stays where CSS put it. A canvas that is never drawn is a black rectangle, so the still
+// frame has to be painted unconditionally and the clock is only what makes it move afterwards.
+//
+// And it re-renders on resize, which a CSS blob never needed: the field is computed in device
+// pixels, so a window change is a new framebuffer. Redrawn immediately rather than waiting for
+// the next animation frame, because with the clock stopped there is no next frame.
+export function useSilkSurface(colors, { skip = false } = {}) {
   const ref = useRef(null);
 
   useEffect(() => {
-    const node = ref.current;
-    if (!node || !active) return undefined;
-    const blobs = [...node.children].slice(0, BLOB_MOTION.length);
-    if (!blobs.length) return undefined;
+    const canvas = ref.current;
+    if (!canvas || skip) return undefined;
+
+    const renderer = createSilkRenderer(canvas, colors);
+    if (!renderer) {
+      // No WebGL, or no derivatives on WebGL1: the CSS ramp underneath is already painted and is
+      // what the page keeps. Marking it lets the stylesheet hide the dead canvas.
+      canvas.dataset.silk = "off";
+      return undefined;
+    }
+    canvas.dataset.silk = "on";
+    renderer.draw(0);
+
+    let lastSeconds = 0;
+    const observer = new ResizeObserver(() => {
+      renderer.resize();
+      renderer.draw(lastSeconds);
+    });
+    observer.observe(canvas);
 
     const stop = runClampedClock((elapsed) => {
-      blobs.forEach((blob, index) => {
-        const { period, x, y, phase } = BLOB_MOTION[index];
-        const angle = 2 * Math.PI * (elapsed / period + phase);
-        blob.style.translate = `${(x * Math.sin(angle)).toFixed(3)}% ${(y * Math.cos(angle)).toFixed(3)}%`;
-      });
+      lastSeconds = elapsed / 1000;
+      renderer.draw(lastSeconds);
     });
-    if (!stop) return undefined;
 
     return () => {
-      stop();
-      for (const blob of blobs) blob.style.translate = "";
+      stop?.();
+      observer.disconnect();
+      renderer.dispose();
     };
-  }, [active]);
+    // Colours are the identity of a solid background: a new preset is a new field, not a tweak to
+    // this one. Joined so an array literal from the caller does not restart the shader every
+    // render — this is the same referential-stability trap useBingWallpaper's memo exists for.
+  }, [colors.join("|"), skip]);
 
   return ref;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowClockwise, ArrowCounterClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@phosphor-icons/react";
-import { Aurora } from "./Aurora";
+import { Silk } from "./Silk";
 import { wallpaperThumbnail } from "../lib/background";
 import { GRADIENTS } from "../lib/background-cache-keys";
 import { cleanForExport, validateShortcutPayload } from "../lib/shortcuts-file";
@@ -61,7 +61,7 @@ function GradientSwatch({ gradient, active, onClick }) {
       aria-label="使用纯色背景"
       aria-pressed={active}
     >
-      <Aurora colors={gradient.colors} still />
+      <Silk colors={gradient.colors} still />
       {active && <span className="gradient-card__check" aria-hidden="true"><Check size={11} weight="bold" /></span>}
     </button>
   );

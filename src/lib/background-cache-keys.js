@@ -59,9 +59,9 @@ export const GRADIENTS = [
   { key: "grad-crimson", colors: ["#821C2A", "#AF3142"] },
   { key: "grad-ember", colors: ["#98381B", "#C9512C"] },
   // Darker than the other warm pair on purpose. Amber is the one hue whose stops sit close to the
-  // tiles' value band to begin with, and the aurora blobs lift every surface a little — at the
-  // old #8D581B/#C27D2E it came out at 0.31 lit, level with the icons. Deepening the ramp buys
-  // back the headroom the blobs spend.
+  // tiles' value band to begin with, and the derived lights lift every surface a little — at
+  // the old #8D581B/#C27D2E it came out at 0.31 lit, level with the icons. Deepening the ramp
+  // buys back the headroom the lit ridges spend.
   { key: "grad-amber", colors: ["#7A4A15", "#A96A24"] },
   { key: "grad-emerald", colors: ["#1A664A", "#2B916C"] },
   { key: "grad-teal", colors: ["#175E69", "#288695"] },
@@ -93,31 +93,28 @@ export function gradientCss(colors) {
   return `linear-gradient(${GRADIENT_DEG}deg, ${colors.join(", ")})`;
 }
 
-// --- aurora -----------------------------------------------------------------------------------
+// --- silk ---------------------------------------------------------------------------------------
 //
-// A two-stop ramp across a whole screen has one problem no amount of colour choice fixes: it is
-// flat, and it is flat in a way that also cannot be animated. Panning a linear gradient is
-// invisible — translate it and you get the same gradient, very slightly moved — so "the wallpaper
-// drifts" simply did not apply to the twelve solid backgrounds.
+// A solid background is rendered as *silk*: a domain-warped noise field lit from the upper left,
+// so the surface has folds with ridges and troughs rather than three blurred discs over a ramp.
+// The blurred-disc version shipped and came back as "像基础 Demo" — a gaussian blob has no edge
+// anywhere, and a page made of nothing but soft edges reads as unfinished no matter what colour
+// it is. Folds have edges. The shader lives in silk.js; what lives here is the part that must
+// stay pure, because the worker imports this file and a test asserts the colour rules.
 //
-// Three soft blobs floating over the ramp solve both at once. They give the surface volume, and
-// because they are elements rather than colour stops, they can be moved on `transform` — which
-// the compositor handles without repainting anything.
-//
-// Their colours are derived from the ramp rather than hand-picked. Thirty-six new hex values
-// would be thirty-six new chances to break the two rules that keep a backdrop recessive (stops
-// within 60° of hue, luminance clear of the tiles' mid band); deriving them from stops that
-// already pass means they pass by construction. The ±22° spread is what stops three blobs of one
-// hue reading as a smudge, and it stays well inside the 60° budget.
-//
-// The lightness lifts are small and were tuned against that second rule, not by eye. Blobs have
-// to be lighter than the ramp — that is where the sense of volume comes from — but every point
-// of lift moves the whole surface toward the value band the icon tiles occupy, and at the first
-// values tried (+0.10/+0.04/+0.17) the amber preset landed squarely inside it.
-const BLOB_RECIPES = [
-  { stop: 1, hue: 22, lightness: 0.06, saturation: 0.06 },
-  { stop: 0, hue: -22, lightness: 0.02, saturation: 0 },
-  { stop: 1, hue: 0, lightness: 0.10, saturation: -0.05 },
+// Five colours are derived from the two authored stops rather than authored themselves — the same
+// reasoning that kept the old blob colours derived: every extra hex value is one more chance to
+// break the two rules that keep a backdrop recessive (hue within 60° of the stops, luminance clear
+// of the tiles' mid band), and deriving from stops that already pass means passing by
+// construction. Deep sits below the first stop, light above the second, and the accent is a glint
+// rotated 30° off the second stop — enough to register as a second colour along one contour,
+// still well inside the family.
+const SILK_RECIPES = [
+  { stop: 0, hue: -10, lightness: -0.09, saturation: 0.04 },  // deep — the troughs
+  { stop: 0, hue: 0, lightness: 0, saturation: 0 },            // base
+  { stop: 1, hue: 0, lightness: 0, saturation: 0 },            // mid
+  { stop: 1, hue: 10, lightness: 0.10, saturation: -0.05 },    // light — the lit ridges
+  { stop: 1, hue: 16, lightness: 0.05, saturation: 0.02 },     // accent — one glinting contour
 ];
 
 function toHsl(hex) {
@@ -147,8 +144,8 @@ function clamp01(value) {
   return Math.min(1, Math.max(0, value));
 }
 
-export function auroraBlobs(colors) {
-  return BLOB_RECIPES.map(({ stop, hue, lightness, saturation }) => {
+export function silkPalette(colors) {
+  return SILK_RECIPES.map(({ stop, hue, lightness, saturation }) => {
     const base = toHsl(colors[stop]);
     return toHex({
       h: (base.h + hue + 360) % 360,
@@ -156,6 +153,30 @@ export function auroraBlobs(colors) {
       l: clamp01(base.l + lightness),
     });
   });
+}
+
+// Where in the noise field a preset looks, and how its folds are turned. Hashed from the colours
+// so every preset has its own composition and the same preset always has the same one — a fold
+// pattern rolled per visit would open two tabs on two different pictures, which is the complaint
+// the wallpaper drift already had to learn from.
+export function silkSeed(colors) {
+  let hash = 2166136261;
+  for (const char of colors.join("")) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
+  const unit = (shift) => ((hash >>> shift) & 0xffff) / 0xffff;
+  return {
+    x: unit(0) * 40,
+    y: unit(8) * 40,
+    // Folds run mostly across the page. A steep angle reads as the picture sliding off it.
+    angle: (unit(16) - 0.5) * 0.9,
+  };
+}
+
+// The silk with no relief, as CSS: what the page shows for the frame before the shader's first
+// draw, and what it falls back to with no WebGL at all. Four of the five colours in the order the
+// shader ramps through them, so the fallback is at least the same family and the same depth.
+export function silkRamp(colors) {
+  const [deep, base, mid, light] = silkPalette(colors);
+  return `linear-gradient(${GRADIENT_DEG}deg, ${deep}, ${base} 30%, ${mid} 65%, ${light})`;
 }
 
 export function findGradient(key) {

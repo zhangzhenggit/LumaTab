@@ -317,39 +317,42 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    the band off entirely, which is what it did before the blur was ever added. */
 .newtab--light .edge { background: none; }
 
-/* Solid backgrounds. The ramp is the element's own background; the three blobs float over it on
-   transforms, which the compositor moves without repainting — the reason they are elements and
-   not extra colour stops, and the reason a solid background can drift at all. Translating a
-   linear gradient produces the same gradient, so without these there is literally nothing on a
-   solid background for the wallpaper drift to move.
-   The motion itself is in useAuroraDrift, not here: same clamped clock as the photograph, for
-   the same reason (a CSS animation advances while the tab is hidden and jumps on return). Each
-   blob orbits on its own period, which is what reads as depth — the wallpaper layer used to
-   carry all three as one unit, and moving a fixed composition around is not animating it. */
-.aurora {
+/* Solid backgrounds. The surface is folded silk drawn by a fragment shader (lib/silk.js) into the
+   canvas inside this element; the element's own background is the shader's colours as a flat
+   ramp, and it is not a placeholder. It is what shows for the frame before the first draw, what
+   stays on a machine with no WebGL, and what is underneath if a context is ever lost — all three
+   handled by painting it here rather than by any code that has to notice.
+   It replaced three blurred discs over the same ramp. Those were reported as "像基础 Demo", and
+   the cause was structural rather than a matter of colour: every edge in that version was a
+   gaussian falloff, and nothing built only from soft edges can read as finished. Folds have
+   ridges, so they have edges, so the surface has a direction the light comes from.
+   The motion is the shader's own time advancing on the same clamped clock the photograph uses
+   (useSilkSurface), never a CSS animation — a timeline keeps running while the tab is hidden and
+   replays the whole gap on return. */
+.silk {
   position: absolute;
   display: block;
   inset: 0;
   overflow: hidden;
-  --aurora-blur: 90px;
+  background-size: cover;
 }
-.aurora b {
-  position: absolute;
+.silk__canvas {
   display: block;
-  border-radius: 50%;
-  /* Matched to the lightness lift in auroraBlobs: together they decide how far a solid
-     background drifts toward the value band the tiles occupy. Raising either needs the test in
-     wallpaper.test.mjs to still pass. */
-  opacity: .5;
-  filter: blur(var(--aurora-blur));
+  width: 100%;
+  height: 100%;
+  /* The field is rendered at a capped internal resolution and stretched here, so the browser's
+     own bilinear filter is doing the upscale. It is low-frequency by construction — the sharpest
+     thing in it is a fold, which spans tens of pixels — so there is nothing for the filter to
+     soften, and the page's grain layer puts pixel-level texture back over the top. */
+  object-fit: cover;
 }
-.aurora b:nth-child(1) { width: 74%; height: 118%; inset: -32% auto auto -20%; }
-.aurora b:nth-child(2) { width: 68%; height: 112%; inset: -24% -18% auto auto; }
-.aurora b:nth-child(3) { width: 80%; height: 104%; inset: auto auto -44% 24%; }
-/* Only the full-bleed one: the settings swatches render the same component with `still`, and
-   promoting thirty-six blurred squares that never move is pure cost. Every blob overhangs its
-   frame by at least 18%, so a 4.5% orbit cannot bring an edge into view. */
-.wallpaper .aurora b { will-change: translate; }
+/* No WebGL at all: the canvas would sit there as an opaque black rectangle over the ramp that is
+   already painted behind it, which is worse than not having tried. */
+.silk__canvas[data-silk="off"] { display: none; }
+/* A swatch is the same shader rendered once into a data URL, because twelve live contexts for
+   twelve squares that never move would spend most of a page's context budget to animate nothing.
+   It carries no canvas, so it only needs the picture to fill it. */
+.silk--still { background-size: cover; background-position: center; }
 .newtab--light .shortcut__name,
 .newtab--light .photo-credit {
   color: var(--t1);
@@ -1724,7 +1727,6 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
   transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
 }
-.gradient-card .aurora { --aurora-blur: 7px; }
 .gradient-card:hover { transform: translateY(-2px); }
 .gradient-card--active { box-shadow: 0 0 0 2px #007aff; }
 .gradient-card__check {
