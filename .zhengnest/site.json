@@ -1,0 +1,10 @@
+{
+  "name": "LumaTab 浮光新页",
+  "tagline": "以 Bing 每日一图开启新标签页：搜索、快捷网格、拖放排序与文件夹。",
+  "icon": "image",
+  "color": "#2dd4bf",
+  "install": [
+    "从 Chrome 应用商店安装",
+    "或：打开 chrome://extensions，开启开发者模式，加载已解压的扩展程序"
+  ]
+}
