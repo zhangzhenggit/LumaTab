@@ -110,3 +110,16 @@ test("ink keeps the accent's own hue and leaves dark accents alone", async () =>
   // toward black for no reason.
   assert.equal(accentInk("#29446c"), "#29446c");
 });
+
+// The fit is written as an inline style, so it cannot be overridden from the stylesheet — a CSS
+// rule for it was written once, read correctly in the source, and did nothing at all. Whatever
+// decides it has to be the component, and this pins that it is.
+test("a folder-preview chip is always contained, whatever the artwork carries", async () => {
+  const source = await (await import("node:fs/promises"))
+    .readFile(new URL("../src/components/BrandIcon.jsx", import.meta.url), "utf8");
+  assert.match(source, /const fit = !compact && item\._iconFullBleed \? "cover" : "contain"/,
+    "the compact chip must not inherit the full-size cover/contain rule");
+  assert.match(source, /objectFit: fit/, "the inline style must use the decided fit");
+  assert.doesNotMatch(source, /objectFit: item\._iconFullBleed/,
+    "deciding the fit from the artwork alone is what let a folder become four coloured chips");
+});
