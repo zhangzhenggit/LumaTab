@@ -1038,33 +1038,57 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .section-heading__caret svg { transition: transform var(--dur-2) var(--ease-out); }
 /* The caret leads the title, so it sits in the margin rather than pushing the text off the
    rail every other heading and tile is aligned to. */
-/* One piece of glass holding the word. Chosen over a bare tinted symbol because the
-   page is frosted end to end now: a heading with no surface of its own floats in the same plane as
-   everything else, while a pill is an object sitting on that plane and puts a visible edge between
-   the label and the grid it names.
+/* One chip holding the word, and it is the tiles' own bed rather than glass. The pill shipped as
+   55% white over a blur — the thin recipe the search bar uses — and on a golden wallpaper it came
+   back khaki, which is exactly how the folder tile failed one level down: a surface that has to
+   read as neutral cannot sample an arbitrary photograph. Behind that sat a real defect. The pill
+   set `color: var(--t1)` and expected the label to inherit it, but `.section-heading__name`
+   carries its own `color: #fff`, and a child's own declaration beats an ancestor's inherited one
+   whatever the order — so the heading was white 700 on a light pane, with almost no contrast at
+   all. The ink is therefore written on the label itself now, where nothing can fail to reach it.
    It is an INNER element, never the row. `.section-seam` — where a dragged section will land — is
    absolutely positioned across the full row, and a row that shrank to hug its label would shrink
    the seam with it; `.section-heading__target` is pinned to the icon rail for the same reason.
-   The pill's own left edge sits on that rail, so the block still lines up with the icons under it;
+   The chip's own left edge sits on that rail, so the block still lines up with the icons under it;
    what moved is which part of the heading the rail catches — the object rather than the word. */
 .section-heading__pill {
   display: inline-flex;
   align-items: center;
   min-width: 0;
   max-width: 100%;
-  padding: 5px 14px;
+  padding: 4px 13px;
   border-radius: 999px;
   color: var(--t1);
-  background: rgba(255, 255, 255, .55);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  box-shadow: var(--glass-rim);
+  /* The same ramp the link tiles use, and opaque for the same reason: one white on every
+     wallpaper. No backdrop-filter, so there is nothing for a photograph to tint. */
+  background: linear-gradient(180deg, #fff, #f7f7f7);
+  /* Two layers where a tile wears three. A chip this small needs the contact line and one step of
+     distance; the pair lands near 23% where they overlap, about half the tile's compounded 41%,
+     which is what keeps a small white pane from growing a dark rim around itself. */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .14), 0 4px 10px rgba(0, 0, 0, .10);
 }
-/* The pill carries its own contrast, so the shadow every other caption needs would only thicken
-   the text. */
+/* The chip carries its own contrast, so the shadow every caption on the wallpaper needs would
+   only thicken the text. */
 .section-heading__pill .section-heading__name,
+.section-heading__pill .section-heading__input,
 .section-heading__pill .section-heading__count { text-shadow: none; }
+.section-heading__pill .section-heading__name,
+.section-heading__pill .section-heading__input {
+  color: var(--t1);
+  /* A step down from the 17px/700 it wore straight on the wallpaper: with a surface of its own
+     the chip already separates the heading from the 14px captions, so the type no longer has to
+     do it alone — which is what made the old one read as shouting. */
+  font-size: 15px;
+  font-weight: 650;
+}
 .section-heading__pill .section-heading__count { color: var(--t3); opacity: 1; }
+/* Renaming happens inside the chip, so the field has to read on white. It was white text in a
+   translucent white box, which was already hard to see on light glass and would have been
+   invisible the moment the chip became opaque. */
+.section-heading__pill .section-heading__input {
+  background: rgba(0, 0, 0, .05);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
 
 /* Collapsed state is the one thing the caret has to say, and it says it by turning. */
 .section-heading__caret { margin-left: 6px; }
@@ -1195,10 +1219,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42);
   outline: none;
 }
-/* The heading's own name and count are inside a light glass pill on every wallpaper, so they are
-   dark ink already and must not be flipped again — only the marks that sit straight on the page
-   follow the background. */
-.newtab--light .section-heading__input,
+/* The heading's own name, count and rename field are inside a chip that is light on every
+   wallpaper, so they are dark ink already and must not be flipped again — only the marks that sit
+   straight on the page follow the background. */
 .newtab--light .section-heading__add,
 .newtab--light .section-heading__caret,
 .newtab--light .section-heading__menu,
@@ -1207,10 +1230,6 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .newtab--light .section-add {
   color: var(--t1);
   text-shadow: 0 0 4px rgba(255, 255, 255, .55);
-}
-.newtab--light .section-heading__input {
-  background: rgba(255, 255, 255, .5);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
 }
 
 /* A section with nothing in it still has to be droppable, and the drag only aims at cells that

@@ -335,7 +335,22 @@ test("the heading's pill wraps the label, not the row", async () => {
   const pill = /\n\.section-heading__pill \{([\s\S]*?)\n\}/.exec(css);
   assert.ok(pill, ".section-heading__pill is missing");
   assert.match(pill[1], /display: inline-flex/, "a pill that fills the row is not a pill");
-  assert.match(pill[1], /backdrop-filter/, "the pill is the glass");
+  // Not glass. At 55% white over a blur it took the wallpaper's cast and came back khaki on a
+  // golden photograph — the same way the folder tile failed one level down. A surface that has to
+  // read as neutral on every wallpaper cannot sample the one behind it.
+  // Declarations, not words: the comments in this rule name the properties they explain the
+  // absence of, so they are stripped before anything is asserted about what it actually sets.
+  const declared = pill[1].replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(declared, /backdrop-filter/, "the chip must not sample the wallpaper");
+  assert.doesNotMatch(declared, /background:\s*rgba/, "the chip's bed must be opaque");
+
+  // The ink has to be written on the label itself. `.section-heading__name` carries its own
+  // `color: #fff` for the wallpaper case, and a child's own declaration beats an ancestor's
+  // inherited one whatever the source order — so the chip setting `color: var(--t1)` and
+  // expecting the label to pick it up is exactly how this shipped as white on near-white.
+  const inked = /\.section-heading__pill \.section-heading__name,\n\.section-heading__pill \.section-heading__input \{([\s\S]*?)\n\}/.exec(css);
+  assert.ok(inked, "the label and the rename field inside the chip have no ink rule of their own");
+  assert.match(inked[1], /color: var\(--t1\)/, "the label inside the chip must set its own dark ink");
 
   // The row must not become the glass, or it stretches the full grid width.
   const row = /\n\.section-heading \{([\s\S]*?)\n\}/.exec(css);
@@ -352,9 +367,14 @@ test("the heading's pill wraps the label, not the row", async () => {
 // A cleared name is a divider, not a caption — so it gets no pill at all. A glass chip floating
 // in a zero-height row would be a caption again, which is the one thing clearing the name asks to
 // be rid of.
-test("an unnamed section gets no pill", async () => {
+test("an unnamed section gets no pill, except while it is being named", async () => {
   const { readFile } = await import("node:fs/promises");
   const jsx = await readFile(new URL("../src/components/SectionHeading.jsx", import.meta.url), "utf8");
   assert.match(jsx, /\{!compact && \(\s*\n[\s\S]{0,400}?className="section-heading__pill"/,
     "the pill must be rendered only when the heading is not compact");
+  // The rename field lives inside that pill, so a heading that stayed compact while `editing` put
+  // nothing on screen at all: "命名此分组" was the only way back from a cleared name, and it was a
+  // dead end. Compact therefore has to give way to the editor.
+  assert.match(jsx, /const compact = !named && !collapsed && !editing;/,
+    "a compact heading being named has nowhere to put its input");
 });

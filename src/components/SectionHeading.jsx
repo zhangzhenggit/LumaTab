@@ -26,8 +26,10 @@ export function SectionHeading({
   const collapsed = isCollapsed(section);
   // A heading with no name and nothing hidden behind it is laid out at zero height; collapsed it
   // has to stay visible, or a section with neither a name nor visible tiles would be a piece of
-  // the grid nobody could find again.
-  const compact = !named && !collapsed;
+  // the grid nobody could find again. And never while it is being named: the field lives inside
+  // the pill, which a compact heading does not render, so "命名此分组" set `editing` and then put
+  // nothing on screen — the one path back from a cleared name was a dead end.
+  const compact = !named && !collapsed && !editing;
 
   useEffect(() => {
     if (!editing) return;
