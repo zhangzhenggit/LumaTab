@@ -86,7 +86,7 @@ function Slider({ id, label, value, min, max, onInput, onCommit, format }) {
   );
 }
 
-export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAccess, onReplace, onMerge, notify }) {
+export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAccess, showClock, onToggleClock, onReplace, onMerge, notify }) {
   const [library, setLibrary] = useState(null);
   const [importError, setImportError] = useState("");
   const [pendingImport, setPendingImport] = useState(null);
@@ -253,6 +253,13 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
               </button>
             </div>
             <p className="group__hint">调整背景的明暗与模糊程度，图标与文字不受影响。重置后亮度重新交给自动匹配。</p>
+            {/* A checkbox, not a slider: it belongs with the other things that change what the
+                page looks like, and it is the one control here that changes the layout rather
+                than the picture. */}
+            <label className="check">
+              <input type="checkbox" checked={showClock} onChange={onToggleClock} />
+              <span><b>显示时钟</b><small>页面顶部的时间与日期</small></span>
+            </label>
             <Slider
               id="wp-brightness"
               label="亮度"

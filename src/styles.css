@@ -28,7 +28,14 @@
   --label-gap: 8px;
   /* Density, not width, is what makes the grid read like the reference. Past 16 columns a wide
      display just stretches the same links thinner, so the grid stops growing and centers. */
-  --max-columns: 16;
+  /* Ten, not sixteen. Sixteen was measured off WeTab and was right for a page with no container
+     on it: the grid was the page, so letting it use the display was the only way to fill one. In
+     a panel the cap is a composition decision instead — at sixteen columns the panel becomes a
+     2000px band across a photograph and stops reading as an object, and the tiles inside it get
+     no denser, only further apart from the page's centre line. Verified against the mock: ten
+     columns is 1200px of track, which sits inside every laptop display with margin to spare and
+     leaves the photograph visible down both sides. */
+  --max-columns: 10;
 
   /* Surface palette. WeTab ships the iOS system grays as --color-*; same values here so glass
      cards, menus and dialogs land on one family instead of drifting per component. */
@@ -370,18 +377,67 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 .newtab__content::-webkit-scrollbar { display: none; }
 
+/* ---------- clock ---------- */
+
+/* The page's focal point, and the thing it had none of. Measured off Bonjourr, the highest-rated
+   page of this kind: its time is 84px at weight 300 with the date a quarter of that underneath,
+   both on the page's own centre line, and the content then runs all the way down the canvas.
+   LumaTab's largest type used to be a 15px section heading, which is exactly why a screenshot of
+   it read as a sheet of stickers — nothing on it was big enough to look at first.
+   72px rather than 84: this page carries a full grid underneath, where Bonjourr's default carries
+   six links, so the clock has to lead the composition without taking the whole upper half. */
+.clock {
+  flex: 0 0 auto;
+  margin-bottom: 26px;
+  text-align: center;
+  animation: search-in var(--dur-4) var(--ease-out) backwards;
+}
+.clock__time {
+  font-size: 72px;
+  /* Light, not thin. Weight 100 disappears against a bright photograph at this size, and the
+     label shadow cannot rescue a stroke that is already under a pixel. */
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -.02em;
+  /* Without tabular figures every digit change shifts the whole clock a pixel or two sideways,
+     which is visible precisely because nothing else on the page moves. */
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--label-shadow);
+}
+/* A colon is narrow in every typeface, so tabular digits alone still let the clock slide on the
+   hour. Giving it a fixed box is what actually holds the whole thing still. */
+.clock__colon {
+  display: inline-block;
+  width: .34em;
+  text-align: center;
+}
+.clock__date {
+  margin-top: 10px;
+  font-size: 15px;
+  opacity: .82;
+  text-shadow: var(--label-shadow);
+}
+.newtab--light .clock__time,
+.newtab--light .clock__date { color: var(--t1); text-shadow: 0 0 4px rgba(255, 255, 255, .55); }
+
 /* ---------- search ---------- */
 
 .search {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  width: min(567px, 100%);
-  height: 52px;
-  margin: 0 auto clamp(56px, 13vh, 92px);
-  padding: 0 16px;
+  /* Wider and taller than the 567x52 measured off WeTab. That number was right for a page whose
+     largest element was the bar itself; with a 72px clock above it, a 52px slot read as a seam
+     between the clock and the grid rather than as the page's one input. */
+  width: min(600px, 100%);
+  height: 56px;
+  margin: 0 auto 30px;
+  padding: 0 18px;
   border: 1px solid var(--glass-line);
-  border-radius: 12px;
+  /* Radius tracks height so the bar keeps the same corner *character* as it grew: 12/52 and
+     16/56 are the same family of curve, where keeping 12px would have made a taller bar read as
+     a rectangle with the corners knocked off. */
+  border-radius: 16px;
   /* The thin recipe: this bar is the largest piece of glass on the page and the one users look
      straight at, so it is the one that has to actually look like glass. It used to drain chroma
      with saturate(.4), which fixed a real problem — the bar took a different cast from every
@@ -440,6 +496,54 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .search__submit:hover { color: var(--t2); background: rgba(0, 0, 0, .05); }
 
 /* ---------- shortcut grid ---------- */
+
+/* One glass sheet under the whole grid.
+   Before it, tiles floated on the photograph with nothing anchoring them anywhere on the page —
+   which is most of what "像基础 Demo" was pointing at. There was no container in the product at
+   all, so the picture and the icons competed for the same plane instead of one framing the other.
+   A single sheet is also what Apple's own guidance asks for: one primary glass surface per view,
+   never two translucent panes stacked.
+
+   **The glass is on a pseudo-element, and that is load-bearing.** `backdrop-filter` creates a
+   stacking context, and the drop caret (.shortcut__caret, z-index 1000) has to outrank dnd-kit's
+   drag overlay at 999 — both of which live outside this panel. Put the filter on .shortcut-panel
+   itself and every one of those z-indexes is clamped inside it, so the caret vanishes underneath
+   the ghost exactly when it matters. This is the same trap .folder-panel already documents, met
+   from the other side. .shortcut-panel therefore stays `position: relative` with `z-index: auto`,
+   which does NOT create a stacking context, and ::before carries the material.
+   A test pins the absence of a backdrop-filter on the panel itself. */
+.shortcut-panel {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: center;
+  max-width: 100%;
+  padding: 26px 26px 30px;
+  border-radius: 28px;
+  /* Held back until the grid is ready, so the sheet and the tiles arrive together rather than an
+     empty pane appearing first and filling in. */
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+.shortcut-panel--ready { opacity: 1; }
+.shortcut-panel::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  /* Much thinner than either glass recipe in :root. Those two are for surfaces that sit *over*
+     the page and have to be read through; this one sits *under* the whole grid and its only job
+     is to give the tiles a plane to rest on. At the chrome recipe's 55% it became a white slab
+     and took the photograph with it. */
+  background: rgba(255, 255, 255, .14);
+  backdrop-filter: blur(34px) saturate(1.5);
+  -webkit-backdrop-filter: blur(34px) saturate(1.5);
+  box-shadow: var(--glass-rim), 0 20px 60px -24px rgba(0, 0, 0, .6);
+  pointer-events: none;
+}
+/* Captions sit on the panel now, not straight on the photograph, so the shadow that was carrying
+   them over arbitrary pixels is doing nothing but thickening the text. */
+.shortcut-panel .shortcut__name { text-shadow: 0 1px 2px rgba(0, 0, 0, .28); }
 
 .shortcut-grid {
   display: grid;
@@ -867,6 +971,11 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
      two rows *inside* a section, so the caption looked like it belonged to nothing. */
   margin-bottom: -22px;
   padding: 30px var(--cell-pad-x) 0;
+  /* 17px, up from the inherited 15px. The page now has a 72px clock on it, and a heading only
+     two steps above the 14px captions it sits over could not hold a block together against that
+     — it read as one more caption rather than as the label for everything under it. */
+  font-size: 17px;
+  font-weight: 600;
 }
 /* Nothing above it to be spaced away from. */
 .section-heading:first-child { padding-top: 0; }
@@ -1514,10 +1623,13 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .context-menu .context-menu__danger { color: #ff3b30; }
 
 .photo-credit {
-  /* 左下角：右下角让给设置按钮，两者各占一角，互不遮挡。 */
+  /* Beside the gear, not in the opposite corner. Two lone marks in two far corners are two
+     separate things to notice on a page whose whole point is now that it has one centre; put
+     together they read as one row of page furniture and the composition keeps the floor. */
   position: fixed;
-  left: 16px;
-  bottom: 14px;
+  z-index: 12;
+  right: 62px;
+  bottom: 21px;
   max-width: 280px;
   overflow: hidden;
   color: rgba(255, 255, 255, .8);
@@ -1587,6 +1699,15 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    pushed the colour swatches past the dialog edge and put a scrollbar under the form. */
 .dialog fieldset { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .dialog legend { margin-bottom: 6px; color: var(--t2); font-size: 13px; }
+/* The same row as .radio, because it is the same kind of control to look at — a label, a
+   sub-label and a box on the left. Written as its own class rather than reusing .radio so the
+   dialog's radio group and the drawer's switches can drift apart later without one silently
+   restyling the other. */
+.check { display: flex; align-items: flex-start; gap: 10px; margin-top: 4px; padding: 10px 12px; border: 1px solid var(--b2); border-radius: 10px; cursor: pointer; }
+.check input { margin: 3px 0 0; accent-color: #007aff; }
+.check span { display: grid; gap: 2px; }
+.check b { font-size: 13px; font-weight: 600; }
+.check small { color: var(--t3); line-height: 1.4; }
 .radio { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--b2); border-radius: 10px; cursor: pointer; }
 .radio input { margin: 3px 0 0; accent-color: #007aff; }
 .radio span { display: grid; gap: 2px; }

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 // Drives the real service-worker module against a stubbed chrome API, so the wallpaper
 // message contract is verified end to end instead of by reading the code.
@@ -357,4 +358,37 @@ test("the tile shadow does not compound into a dark rim, least of all on white",
   for (const [, alpha] of bevel.matchAll(/rgba\(0, 0, 0, (\.\d+)\)/g)) {
     assert.ok(Number(alpha) <= 0.12, `a bevel layer at ${alpha} black will read as a drawn border`);
   }
+});
+
+// The glass under the grid lives on a pseudo-element, and that is not a style choice.
+//
+// `backdrop-filter` creates a stacking context. The drop caret sits at z-index 1000 so it can
+// outrank dnd-kit's drag overlay at 999, and BOTH of those live outside the panel — so putting
+// the filter on `.shortcut-panel` itself clamps every z-index inside it and the caret disappears
+// under the drag ghost at exactly the moment it is the only thing telling you where the tile will
+// land. `.folder-panel` already documents this trap from the other side, where its own
+// backdrop-filter traps its caret; this is the same rule met from outside.
+test("the shortcut panel creates no stacking context of its own", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const block = /\n\.shortcut-panel \{([\s\S]*?)\n\}/.exec(css);
+  assert.ok(block, ".shortcut-panel is missing");
+  for (const property of ["backdrop-filter", "filter:", "transform:", "will-change", "mix-blend-mode"]) {
+    assert.ok(!block[1].includes(property),
+      `.shortcut-panel must not carry ${property} — it would clamp the drop caret under the drag overlay`);
+  }
+  // z-index only creates a stacking context on a positioned element, which this one is.
+  assert.ok(!/\n\s*z-index:/.test(block[1]), ".shortcut-panel must keep z-index: auto");
+  // ...and the material has to actually be somewhere, or the panel is invisible.
+  assert.match(css, /\.shortcut-panel::before \{[\s\S]*?backdrop-filter:/,
+    "the glass must live on the pseudo-element");
+});
+
+// Sixteen columns was measured off WeTab and was right for a page with no container on it: the
+// grid was the page. Inside a panel the cap is a composition decision — at sixteen the panel
+// becomes a 2000px band across a photograph and stops reading as an object.
+test("the grid is capped at ten columns so the panel stays an object", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const cap = /--max-columns:\s*(\d+)/.exec(css);
+  assert.ok(cap, "--max-columns is missing");
+  assert.equal(Number(cap[1]), 10);
 });

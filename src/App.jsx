@@ -12,7 +12,9 @@ import { useBingWallpaper } from "./hooks/useBingWallpaper";
 import { useNotice } from "./hooks/useNotice";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { useSiteAccess } from "./hooks/useSiteAccess";
+import { useShowClock } from "./hooks/useShowClock";
 import { useWallpaperDrift } from "./hooks/useWallpaperDrift";
+import { Clock } from "./components/Clock";
 import { Silk } from "./components/Silk";
 import { needsDarkInk, wallpaperFilterStyle } from "./lib/background-cache-keys";
 import { findItem } from "./lib/shortcuts-tree";
@@ -27,6 +29,7 @@ export function App({ initialWallpaper = null }) {
   const shortcutsApi = useShortcuts(notify);
   const { shortcuts, ready, sensors, activeId, landedId, mergeReadyId, dropIndicator, sectionPlan, selection, band, carried } = shortcutsApi;
   const siteAccess = useSiteAccess(shortcuts, ready);
+  const { showClock, toggleClock } = useShowClock();
   // Drives `scale` and `translate` on the wallpaper layer from its own clamped clock, so a tab
   // coming back from hidden resumes instead of jumping. The seed identifies the picture, not the
   // visit: it decides which direction this wallpaper drifts, and it has to stay the same across
@@ -188,12 +191,22 @@ export function App({ initialWallpaper = null }) {
           the gaps between rows — and useSelection refuses anything that already means something
           when pressed. Nothing had to give up a gesture for this. */}
       <div className="newtab__content" onPointerDown={shortcutsApi.onBandPointerDown}>
+        {/* The focal point. Everything above the grid sits on the page's own centre line, which
+            is what turns a scatter of tiles into a composition — see .clock in styles.css. */}
+        {showClock && <Clock />}
         <SearchBar />
         {/* No SortableContext: the grid is a static target for the whole drag, and every drop is
             resolved from the snapshot taken when it started. dropAnimation is off for the same
             reason — the tile has already moved to its new cell by the time the ghost lands, so
             flying the ghost back to where the drag began would animate to the wrong place. */}
         <DndContext sensors={sensors} onDragStart={dragStart} onDragMove={shortcutsApi.dragMove} onDragEnd={shortcutsApi.dragEnd} onDragCancel={shortcutsApi.resetDragState}>
+          {/* One glass sheet under the whole grid. Before it the tiles floated on the photograph
+              with nothing anchoring them, which is most of what "像基础 Demo" was pointing at: the
+              page had no container anywhere, so the picture and the icons competed instead of one
+              framing the other. It wraps the grid ONLY — DragOverlay below is its sibling on
+              purpose, and the glass lives on a pseudo-element for the same reason. See
+              .shortcut-panel. */}
+          <div className={`shortcut-panel ${ready ? "shortcut-panel--ready" : ""}`}>
           <section className={`shortcut-grid ${ready ? "shortcut-grid--ready" : ""} ${activeId ? "shortcut-grid--editing" : ""}`} aria-label="快捷链接">
             {blocks.map((block, blockIndex) => (
               <Fragment key={block.marker?.id ?? "lead"}>
@@ -260,6 +273,7 @@ export function App({ initialWallpaper = null }) {
               </Fragment>
             ))}
           </section>
+          </div>
           <DragOverlay dropAnimation={null}>
             {activeItem && <ShortcutGhost item={activeItem} count={carried.length} />}
             {activeSection && (
@@ -319,6 +333,8 @@ export function App({ initialWallpaper = null }) {
         wallpaperApi={wallpaperApi}
         shortcuts={shortcuts}
         siteAccess={siteAccess}
+        showClock={showClock}
+        onToggleClock={toggleClock}
         onReplace={shortcutsApi.replaceAll}
         onMerge={shortcutsApi.mergeIn}
         notify={notify}
