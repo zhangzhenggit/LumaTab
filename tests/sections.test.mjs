@@ -418,3 +418,40 @@ test("glyph and colour both travel with the file", async () => {
   assert.equal(future[0].accentColor, null);
   assert.equal(future[0].glyph, "Robot");
 });
+
+// The heading's glass pill is an INNER element, never the row itself. The row has to keep
+// spanning the whole grid because `.section-seam` — where a dragged section will land — is
+// absolutely positioned across it, and a row shrunk to hug its label would shrink the seam with
+// it; `.section-heading__target`, the collapsed heading's drop target, is pinned to the icon rail
+// for the same reason. Both are siblings of the pill, not children.
+test("the heading's pill wraps the label, not the row", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const jsx = await readFile(new URL("../src/components/SectionHeading.jsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  const pill = /\n\.section-heading__pill \{([\s\S]*?)\n\}/.exec(css);
+  assert.ok(pill, ".section-heading__pill is missing");
+  assert.match(pill[1], /display: inline-flex/, "a pill that fills the row is not a pill");
+  assert.match(pill[1], /backdrop-filter/, "the pill is the glass");
+
+  // The row must not become the glass, or it stretches the full grid width.
+  const row = /\n\.section-heading \{([\s\S]*?)\n\}/.exec(css);
+  assert.ok(row, ".section-heading rule is gone");
+  assert.ok(!row[1].includes("backdrop-filter"), "the row must not carry the glass itself");
+
+  // The seam and the drop target stay outside the pill.
+  const pillOpen = jsx.indexOf('className="section-heading__pill"');
+  assert.ok(pillOpen > 0, "the pill is missing from the markup");
+  assert.ok(jsx.indexOf('className="section-seam"') < pillOpen, "the seam must precede the pill");
+  assert.ok(jsx.indexOf("section-heading__target") < pillOpen, "the drop target must precede the pill");
+});
+
+// A cleared name is a divider, not a caption — so it gets no pill at all. A glass chip floating
+// in a zero-height row would be a caption again, which is the one thing clearing the name asks to
+// be rid of.
+test("an unnamed section gets no pill", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const jsx = await readFile(new URL("../src/components/SectionHeading.jsx", import.meta.url), "utf8");
+  assert.match(jsx, /\{!compact && \(\s*\n[\s\S]{0,400}?className="section-heading__pill"/,
+    "the pill must be rendered only when the heading is not compact");
+});

@@ -3,6 +3,7 @@ import { CaretDown, DotsSixVertical, DotsThree } from "@phosphor-icons/react";
 import { useDraggable } from "@dnd-kit/core";
 import { isCollapsed, isNamed } from "../lib/sections";
 import { SectionIcon } from "./SectionIcon";
+import { accentInk } from "../lib/icons";
 
 const MAX_NAME = 24;
 
@@ -93,15 +94,24 @@ export function SectionHeading({
           onClick={onToggleCollapse}
         ><CaretDown size={13} weight="bold" /></button>
       )}
-      {!compact && section.glyph && (
-        // Coloured, the glyph goes into a small squircle: a saturated shape has to bring its own
-        // background over an arbitrary photograph, and a chip in the tile's own corner curve is
-        // the material this product already speaks. Uncoloured, it stays a bare white glyph —
-        // which is what every heading was before colour existed, so the default page is unchanged.
+      {!compact && (
+      // The pill is an inner element, never the row. The row has to keep spanning the whole grid
+      // because `.section-seam` — the landing indicator for a dragged section — is absolutely
+      // positioned across it, and a row that shrank to hug its label would shrink the seam with
+      // it. It is also what keeps `.section-heading__target` on the icon rail.
+      <span className="section-heading__pill">
+      {section.glyph && (
+        // A symbol beside the word, not a tile. It spent a while as a saturated squircle carrying
+        // the tile's own corner curve, and that was the problem: same shape, same material and
+        // same corner as the links below it, so the eye read a 24px heading badge as one more
+        // link. Apple's own symbols are typographic — they align with the text, take its weight
+        // and carry one colour — and that is what this is now.
+        // The colour is `accentInk`, not the raw accent: the pill is light glass, and the same
+        // derivation that makes a monogram readable on a white tile makes a glyph readable here.
         <span
-          className={`section-heading__icon ${section.accentColor ? "section-heading__icon--chip" : ""}`}
-          style={section.accentColor ? { "--section-accent": section.accentColor } : undefined}
-        ><SectionIcon name={section.glyph} size={section.accentColor ? 15 : 17} /></span>
+          className="section-heading__icon"
+          style={section.accentColor ? { "--section-accent": accentInk(section.accentColor) } : undefined}
+        ><SectionIcon name={section.glyph} size={17} /></span>
       )}
       {editing ? (
         <input
@@ -121,15 +131,6 @@ export function SectionHeading({
             if (event.key === "Escape") { event.preventDefault(); cancelled.current = true; onCancel(); }
           }}
         />
-      ) : compact ? (
-        // A heading with its name cleared keeps the break and gives back the line. The row is
-        // laid out at zero height, so the two row-gaps either side of it simply meet; what sits
-        // in the gap is an overlay that occupies nothing and shows nothing until pointed at,
-        // which is also the only way back to naming it.
-        <span className="section-heading__float">
-          <button type="button" className="section-heading__add" onClick={onStartEdit}>命名此分区</button>
-          {controls}
-        </span>
       ) : (
         <>
           <button
@@ -140,8 +141,21 @@ export function SectionHeading({
             onContextMenu={onContextMenu}
           >{named ? section.name : "未命名"}</button>
           {collapsed && <span className="section-heading__count">{count}</span>}
-          {controls}
         </>
+      )}
+      </span>
+      )}
+      {!compact && controls}
+      {compact && (
+        // A heading with its name cleared keeps the break and gives back the line. The row is
+        // laid out at zero height, so the two row-gaps either side of it simply meet; what sits
+        // in the gap is an overlay that occupies nothing and shows nothing until pointed at,
+        // which is also the only way back to naming it. No pill here: an empty name is a divider,
+        // and a divider with a glass chip floating on it is a caption again.
+        <span className="section-heading__float">
+          <button type="button" className="section-heading__add" onClick={onStartEdit}>命名此分区</button>
+          {controls}
+        </span>
       )}
     </div>
   );

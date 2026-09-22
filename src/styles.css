@@ -1019,40 +1019,56 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .section-heading__caret svg { transition: transform var(--dur-2) var(--ease-out); }
 /* The caret leads the title, so it sits in the margin rather than pushing the text off the
    rail every other heading and tile is aligned to. */
+/* One piece of glass holding the glyph and the word. Chosen over a bare tinted symbol because the
+   page is frosted end to end now: a heading with no surface of its own floats in the same plane as
+   everything else, while a pill is an object sitting on that plane and puts a visible edge between
+   the label and the grid it names.
+   It is an INNER element, never the row. `.section-seam` — where a dragged section will land — is
+   absolutely positioned across the full row, and a row that shrank to hug its label would shrink
+   the seam with it; `.section-heading__target` is pinned to the icon rail for the same reason.
+   The pill's own left edge sits on that rail, so the block still lines up with the icons under it;
+   what moved is which part of the heading the rail catches — the object rather than the glyph. */
+.section-heading__pill {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 5px 14px 5px 11px;
+  border-radius: 999px;
+  color: var(--t1);
+  background: rgba(255, 255, 255, .55);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow: var(--glass-rim);
+}
+/* The pill carries its own contrast, so the shadow every other caption needs would only thicken
+   the text. */
+.section-heading__pill .section-heading__name,
+.section-heading__pill .section-heading__count { text-shadow: none; }
+.section-heading__pill .section-heading__count { color: var(--t3); opacity: 1; }
+
 .section-heading__caret { margin-left: -26px; }
 
 /* Sits on the rail, before the word. Filled and the same colour as the text, so a heading is
    one object rather than a badge with a caption — see SectionIcon for why it is not an emoji. */
+/* A symbol beside the word, not a tile. It was a 24px saturated squircle carrying the tile's own
+   corner curve — the same shape, material and corner as the links below it — so a heading badge
+   read as one more link, and the glyph inside it was too small to be anything but noise. Apple's
+   own symbols are typographic: they align with the text, take its weight, and carry one colour.
+   The weight went from `fill` to `bold` at the same time. Fill was chosen originally because a
+   line glyph at 17px over a bare photograph loses its interior to whatever is behind it and reads
+   as texture — true then, and no longer true: `.frost` flattens and lifts the whole backdrop, so
+   a line glyph now has a calm field to sit on, and at this size it is far cleaner than a filled
+   pictogram with interior detail (the Calendar glyph carries a numeral inside it). */
 .section-heading__icon {
   display: grid;
   place-items: center;
-  margin-right: 7px;
-  color: #fff;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+  margin-right: 8px;
+  /* Ink, not the raw accent. The pill is light glass, and the derivation that makes a monogram
+     readable on a white tile is the one that makes a glyph readable here — same function, same
+     palette, so the two can never disagree about what a section's colour looks like. */
+  color: var(--section-accent, var(--t2));
 }
-.newtab--light .section-heading__icon { color: var(--t1); filter: none; }
-/* The coloured form. Same corner curve as every tile on the page, because this is the same
-   material one size down — a saturated shape needs to bring its own background over an arbitrary
-   photograph, and borrowing the squircle is what keeps it from reading as a foreign badge. The
-   rim is a simplified --tile-bevel: that constant is calibrated for 60px, and its 1px highlight
-   is proportionally three times heavier on a 22px square. */
-/* 24px, up from 22, and the glyph inside it went 13 -> 15. Both follow the heading, which is
-   17px/600 now: a 22px badge beside it read as a bullet point rather than as the section's mark.
-   The radius stays 22% of the width, which is Apple's own number for an icon of any size. */
-.section-heading__icon--chip {
-  width: 24px;
-  height: 24px;
-  border-radius: 5.3px;
-  corner-shape: var(--icon-corner);
-  color: #fff;
-  background: var(--section-accent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .32),
-    inset 0 0 0 .5px rgba(0, 0, 0, .1),
-    0 1px 3px rgba(0, 0, 0, .38);
-  filter: none;
-}
-.newtab--light .section-heading__icon--chip { color: #fff; }
 
 /* Tighter than the dialog's, which has a whole column to spend; this one lives in a 286px panel
    and reads as a strip rather than a block of tiles. Written as a descendant selector on purpose:
@@ -1189,10 +1205,11 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42);
   outline: none;
 }
-.newtab--light .section-heading__name,
+/* The heading's own name and count are inside a light glass pill on every wallpaper, so they are
+   dark ink already and must not be flipped again — only the marks that sit straight on the page
+   follow the background. */
 .newtab--light .section-heading__input,
 .newtab--light .section-heading__add,
-.newtab--light .section-heading__count,
 .newtab--light .section-heading__caret,
 .newtab--light .section-heading__menu,
 .newtab--light .section-heading__grip,

@@ -25,7 +25,7 @@ const GLYPHS = {
 export function SectionIcon({ name, size = 17 }) {
   const Glyph = GLYPHS[name];
   if (!Glyph) return null;
-  return <Glyph size={size} weight="fill" aria-hidden="true" />;
+  return <Glyph size={size} weight="bold" aria-hidden="true" />;
 }
 
 export const GLYPH_NAMES = Object.keys(GLYPHS);
