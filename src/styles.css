@@ -1855,16 +1855,29 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .wallpaper-card__pending { display: block; width: 100%; height: 100%; background: linear-gradient(110deg, var(--b2), var(--b3), var(--b2)); }
 .wallpaper-card:hover { transform: translateY(-2px); }
 .wallpaper-card--active { box-shadow: 0 0 0 2px #007aff; }
+/* A glass chip, not a scrim. This used to be a full-width `linear-gradient(transparent, 60%
+   black)` across the bottom of every thumbnail — which is the veil approach the wallpaper itself
+   rejected, for the same reason it fails here: it darkens a third of each picture to make eleven
+   characters legible, so the thing being chosen is partly hidden by the label naming it. The
+   chip pays for its own legibility and leaves the photograph alone.
+   Same thin recipe the search bar and the folder tiles use, so it is the page's material rather
+   than a second kind of glass invented for the drawer. Dark ink on light glass rather than the
+   white it was: a 55%-white pane is light over any photograph, bright or dark, while white text
+   needed the scrim precisely because it was not. */
 .wallpaper-card__date {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 16px 8px 6px;
-  color: #fff;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, .6));
+  bottom: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--t1);
+  background: var(--glass-thin-bg);
+  backdrop-filter: var(--glass-thin-filter);
+  -webkit-backdrop-filter: var(--glass-thin-filter);
+  box-shadow: var(--glass-rim);
   font-size: 11px;
-  text-align: left;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
 }
 .wallpaper-card__check {
   position: absolute;
@@ -1877,6 +1890,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   border-radius: 50%;
   color: #fff;
   background: #007aff;
+  /* A saturated blue disc lands on whatever the photograph has in that corner; the ring is what
+     keeps it a badge sitting on the picture rather than a shape cut out of it. */
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .92), 0 1px 3px rgba(0, 0, 0, .3);
 }
 
 /* Swatches render the wallpaper itself at 1/40 scale — the same <Aurora>, the same colours, the
