@@ -130,32 +130,23 @@ test("switching to auto keeps the current picture and only follows Bing from the
   assert.equal(back?.mode, "auto");
 });
 
-// `auto: true` on a plain tuning message only *preserves* the stored brightnessAuto flag — it
-// never sets it. That is correct for storeAutoBrightness (the page reporting a value it derived
-// on its own must not look like a user decision), but it means nothing on that path could ever
-// turn automatic tone matching back on once a manual slider drag had switched it off. Reset needs
-// its own flag for exactly that reason, and this pins the case that would otherwise regress: a
-// user with a hand-set brightness clicking reset, expecting to actually get automatic mode back.
-test("reset turns automatic tone matching back on even after a manual brightness was set", async () => {
+// Every brightness that reaches the worker is now one the page measured off the photograph —
+// the slider that used to send a chosen one is gone — so storing a brightness must never look
+// like a decision. The flag it used to be able to switch off is what the old reset path existed
+// to switch back on, and with no way to turn it off there is nothing left to reset.
+test("a stored brightness never ends automatic tone matching", async () => {
   chromeStub.store[BACKGROUND_META_KEY] = {
     images: [{ startDate: "20260818", urlbase: "/a", imageUrl: "https://www.bing.com/th?id=a" }],
     selectedIndex: 0,
     fetchedAt: Date.now(),
   };
-
-  const manual = await chromeStub.send({ type: "LUMATAB_SET_WALLPAPER", brightness: 82 });
-  assert.equal(manual?.brightnessAuto, false, "a manual brightness must end auto mode");
-
-  // The bug this guards against: reporting a value as if the page had derived it does not revive
-  // auto mode, because `auto: true` here only preserves whatever brightnessAuto already was.
-  const stillOff = await chromeStub.send({ type: "LUMATAB_SET_WALLPAPER", brightness: 55, auto: true });
-  assert.equal(stillOff?.brightnessAuto, false, "auto:true on a tuning message must not resurrect auto mode");
-
-  const reset = await chromeStub.send({ type: "LUMATAB_SET_WALLPAPER", reset: true });
-  assert.equal(reset?.brightness, 60, "reset must restore the default brightness");
-  assert.equal(reset?.blur, 10, "reset must restore the default blur");
-  assert.equal(reset?.brightnessAuto, true, "reset is the one path that must turn auto mode back on");
-  assert.equal(chromeStub.store[BACKGROUND_META_KEY].brightnessAuto, true, "the reset must be persisted");
+  const measured = await chromeStub.send({ type: "LUMATAB_SET_WALLPAPER", brightness: 41, auto: true });
+  assert.equal(measured?.brightnessAuto, true);
+  assert.equal(chromeStub.store[BACKGROUND_META_KEY].brightness, 41);
+  // And a message that arrives without the flag is treated the same way, because there is no
+  // longer any sender that means anything different by it.
+  const plain = await chromeStub.send({ type: "LUMATAB_SET_WALLPAPER", brightness: 63 });
+  assert.equal(plain?.brightnessAuto, true);
 });
 
 // Two attempts at an ambient wallpaper pan shipped as a CSS animation, and both were reported as

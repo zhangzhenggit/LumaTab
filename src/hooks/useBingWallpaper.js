@@ -1,8 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   brightnessFrom,
-  DEFAULT_BLUR,
-  DEFAULT_BRIGHTNESS,
   findGradient,
   gradientCss,
 } from "../lib/background-cache-keys";
@@ -14,9 +12,7 @@ import {
   followLatestWallpaper,
   loadBingBackground,
   loadWallpaperLibrary,
-  resetWallpaperTuning,
   storeAutoBrightness,
-  tuneWallpaper,
 } from "../lib/background";
 
 export function useBingWallpaper(notify, initialWallpaper = null) {
@@ -28,17 +24,18 @@ export function useBingWallpaper(notify, initialWallpaper = null) {
     gradientColors: initialWallpaper?.gradientColors ?? null,
   }));
   const [backgroundMeta, setBackgroundMeta] = useState(initialWallpaper?.meta ?? null);
-  const [tuning, setTuning] = useState(() => ({
-    brightness: brightnessFrom(initialWallpaper?.meta),
-    blur: initialWallpaper?.meta?.blur ?? DEFAULT_BLUR,
-  }));
-  // True until the brightness slider is touched. While it holds, each photo is measured and
-  // toned down just enough to sit clear of the icon tiles' value band — the same gap the deep
-  // gradients get for free, which is what makes the icons read as the foreground.
-  const autoToneRef = useRef(initialWallpaper?.meta?.brightnessAuto !== false);
+  // One number, and nothing sets it by hand any more. Brightness used to be a slider beside a
+  // blur slider; both are gone, because `.frost` solves for the whole page what they were being
+  // asked to solve per photograph, and a measurement is a better answer than a control the user
+  // has to discover and then get right.
+  const [tuning, setTuning] = useState(() => ({ brightness: brightnessFrom(initialWallpaper?.meta) }));
+  // Tone matching is unconditional now. It used to hold only until the brightness slider was
+  // touched, because a measurement must never override a decision — but there is no longer a
+  // decision to override, so the `brightnessAuto` flag in storage is vestigial and deliberately
+  // not read. An install whose slider had been dragged before would otherwise stay stuck at
+  // whatever it was left at, with nothing anywhere to change it back.
   const tonedRef = useRef(null);
   const [photoLuminance, setPhotoLuminance] = useState(null);
-  const pendingTuning = useRef(null);
   const startedRef = useRef(false);
 
   const replaceWallpaper = useCallback((result) => {
@@ -56,8 +53,7 @@ export function useBingWallpaper(notify, initialWallpaper = null) {
     if (result.gradient) setPhotoLuminance(null);
     setBackgroundMeta(result.meta);
     if (result.meta) {
-      if (result.meta.brightnessAuto !== undefined) autoToneRef.current = result.meta.brightnessAuto;
-      setTuning({ brightness: brightnessFrom(result.meta), blur: result.meta.blur ?? DEFAULT_BLUR });
+      setTuning({ brightness: brightnessFrom(result.meta) });
     }
     void matchTone(result);
   }, []);
@@ -74,13 +70,8 @@ export function useBingWallpaper(notify, initialWallpaper = null) {
     // mean to both is what left white captions on wallpapers that were bright exactly where the
     // captions sit — see the comment at the top of wallpaper-tone.js.
     setPhotoLuminance(tone.captionBand);
-    if (!autoToneRef.current) return;
     const brightness = autoBrightnessFor(tone.mean);
-    setTuning((current) => {
-      if (current.brightness === brightness) return current;
-      pendingTuning.current = { ...current, brightness };
-      return pendingTuning.current;
-    });
+    setTuning((current) => (current.brightness === brightness ? current : { brightness }));
     void storeAutoBrightness(brightness);
   }, []);
 
@@ -134,47 +125,10 @@ export function useBingWallpaper(notify, initialWallpaper = null) {
     return await chooseGradient(gradientKey);
   }, [notify]);
 
-  // Brightness and blur repaint the live page immediately and persist in the background, so
-  // dragging a slider feels direct instead of waiting on a round trip per step. The write is
-  // kept out of the state updater: React invokes updaters twice under StrictMode, and a
-  // message send is not something that may run twice per change.
-  const adjust = useCallback((next) => {
-    // Touching the slider is a decision; automatic tone matching stops for good.
-    if (next.brightness !== undefined) autoToneRef.current = false;
-    setTuning((current) => {
-      const merged = { ...current, ...next };
-      pendingTuning.current = merged;
-      return merged;
-    });
-  }, []);
-  // Persisted when the drag ends rather than on every step, so one gesture is one write.
-  const commitTuning = useCallback(() => {
-    if (pendingTuning.current) void tuneWallpaper(pendingTuning.current);
-  }, []);
-
-  // Back to how it ships. Restoring the two numbers is the easy half; the half that matters is
-  // handing brightness back to the tone matcher, because that is the state a fresh install is in
-  // and it is switched off for good the moment the slider moves. The measured value the matcher
-  // then produces will usually differ from DEFAULT_BRIGHTNESS, which is correct — the default is
-  // only where it starts from before it has looked at the photo.
-  const resetTuning = useCallback(() => {
-    autoToneRef.current = true;
-    pendingTuning.current = null;
-    setTuning({ brightness: DEFAULT_BRIGHTNESS, blur: DEFAULT_BLUR });
-    void resetWallpaperTuning();
-    // matchTone refuses to measure a photo twice, so the guard has to be cleared before asking
-    // it to look again at the picture already on screen.
-    const measured = tonedRef.current;
-    if (measured) {
-      tonedRef.current = null;
-      void matchTone({ url: measured });
-    }
-  }, [matchTone]);
-
   // Stable across renders so consumers can safely put it in a dependency array; rebuilding it
   // every render made SettingsPanel's effect re-run forever, refetching the library each time.
   return useMemo(() => ({
     wallpaper, backgroundMeta, tuning, photoLuminance,
-    loadWallpaperLibrary, pinWallpaper, followLatest, pickGradient, adjust, commitTuning, resetTuning,
-  }), [wallpaper, backgroundMeta, tuning, photoLuminance, pinWallpaper, followLatest, pickGradient, adjust, commitTuning, resetTuning]);
+    loadWallpaperLibrary, pinWallpaper, followLatest, pickGradient,
+  }), [wallpaper, backgroundMeta, tuning, photoLuminance, pinWallpaper, followLatest, pickGradient]);
 }

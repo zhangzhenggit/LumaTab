@@ -3,7 +3,6 @@ import {
   BACKGROUND_META_KEY,
   backgroundCacheRequest,
   brightnessFrom,
-  DEFAULT_BLUR,
   DEFAULT_BRIGHTNESS,
   imageKey,
   selectedImage,
@@ -50,10 +49,10 @@ async function storeState(state) {
 
 function adjustments(state) {
   return {
+    // The one number left. The blur that used to sit beside it is gone with its slider, and so is
+    // the slider that set this one — the page measures each photo instead. `brightnessAuto` is
+    // still reported because old stored states carry it, but nothing reads it any more.
     brightness: brightnessFrom(state),
-    blur: state?.blur ?? DEFAULT_BLUR,
-    // Until the slider is touched, the page is free to pick a brightness that keeps the icons
-    // legible on whatever photo Bing sends. Once it is touched the choice is the user's.
     brightnessAuto: state?.brightnessAuto !== false,
   };
 }
@@ -116,30 +115,15 @@ async function cacheWholeArchive(state) {
   }
 }
 
-async function selectWallpaper({ mode, key, gradientKey, brightness, blur, auto = false, reset = false }) {
+async function selectWallpaper({ mode, key, gradientKey, brightness, auto = false }) {
   const state = (await getStoredState()) ?? {};
 
-  // Reset means "as installed", and as installed brightness is chosen by the tone matcher rather
-  // than by a stored number. So this is the one path that turns brightnessAuto back on: `auto`
-  // below only ever preserves the stored flag, never sets it, so nothing else can undo the switch
-  // that flipped when the user first dragged the slider.
-  if (reset) {
-    const next = { ...state, brightness: DEFAULT_BRIGHTNESS, blur: DEFAULT_BLUR, brightnessAuto: true };
-    await storeState(next);
-    return wallpaperLibrary(next);
-  }
-
-  // Mask/blur are independent of which wallpaper is showing, so they are applied on their own
-  // and leave the current selection untouched.
-  if (gradientKey === undefined && mode === undefined && (brightness !== undefined || blur !== undefined)) {
-    const tuned = {
-      ...state,
-      brightness: brightness ?? brightnessFrom(state),
-      blur: blur ?? state.blur ?? DEFAULT_BLUR,
-      // An explicit brightness ends automatic tone matching for good; a value the page derived
-      // from the photo itself is not a choice, so it leaves auto mode intact.
-      brightnessAuto: brightness === undefined || auto ? state.brightnessAuto !== false : false,
-    };
+  // A brightness is independent of which wallpaper is showing, so it is stored on its own and
+  // leaves the current selection untouched. Every brightness that arrives now is one the page
+  // measured off the photograph — there is no slider left to send anything else — so this never
+  // ends automatic tone matching.
+  if (gradientKey === undefined && mode === undefined && brightness !== undefined) {
+    const tuned = { ...state, brightness, brightnessAuto: true };
     await storeState(tuned);
     return wallpaperLibrary(tuned);
   }

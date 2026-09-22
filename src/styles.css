@@ -89,10 +89,18 @@
      53% now, with the far layer given its spread back so it fades instead of ending. A shadow
      says "premium" by being *definite* at the contact point and *gone* by the time it is far;
      the mistake was reading "definite" as "dark everywhere". */
+  /* Re-tuned once the page gained `.frost`. These numbers were chosen against a bare photograph,
+     where a tile had to hold its own over anything Bing sent; over a frosted backdrop the same
+     ink reads as soot, because the thing it was fighting has been flattened and lifted. The
+     compounded total goes 53% -> 41%, and the fall-off is wider: Apple's guidance for a Big Sur
+     icon is one *smooth elevation* shadow, and what separates elevation from grime is that it is
+     definite where the object touches and gone by the time it is far. The 1px contact layer is
+     therefore untouched — that line is what stops a tile looking pasted on — and all of the
+     reduction comes out of the two layers that carry distance. */
   --tile-shadow:
-    drop-shadow(0 1px 1px rgba(0, 0, 0, .26))
-    drop-shadow(0 2px 5px rgba(0, 0, 0, .18))
-    drop-shadow(0 8px 18px rgba(0, 0, 0, .22));
+    drop-shadow(0 1px 1px rgba(0, 0, 0, .22))
+    drop-shadow(0 3px 8px rgba(0, 0, 0, .13))
+    drop-shadow(0 10px 24px rgba(0, 0, 0, .16));
   /* The bevel every tile wears, over whatever is inside it. Same idea as --glass-rim, because it
      is the same idea: a lit top edge and a shaded bottom one is what makes a surface read as a
      physical object instead of a shape pasted onto a picture. The tiles had no such thing, and
@@ -503,12 +511,16 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    giving the content a boundary, the whole page becomes one surface. They are mutually exclusive,
    not layers of one idea, which is why the card is gone rather than sitting inside this.
 
-   It is deliberately the weakest of the settings that were rendered side by side. At 26% white
-   over blur(64px) the page is beautifully clean and the photograph is unrecognisable, which makes
-   a daily wallpaper pointless; at 7% over blur(18px) the picture is still a picture and the page
-   is still one surface. Legibility was never this layer's job — the label shadow, the edge tints
-   and the tone matcher already do that — so it only has to unify, and a light touch unifies just
-   as well as a heavy one.
+   Four strengths were rendered side by side against a real photograph. 26% white over blur(64px)
+   is beautifully clean and leaves the picture unrecognisable, which makes a daily wallpaper
+   pointless. It shipped at 7%/blur(18px) — the weakest — and came back as too weak, so it is
+   13%/blur(30px) now: the photograph is still legibly a photograph, and the page is unmistakably
+   one surface rather than tiles resting on a picture.
+
+   **This layer is also where the page's brightness now comes from.** 13% white over the frame
+   lifts the whole composite, which is what removed the need for both the brightness and the blur
+   sliders: blur softened the picture and left its luminance alone, and luminance is the half that
+   actually buys the icons their contrast.
 
    **It sits UNDER the grain and the vignette**, which is why it is a backdrop layer here rather
    than a background on a wrapper around the content. A backdrop-filter blurs everything painted
@@ -525,9 +537,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   position: fixed;
   z-index: -3;
   inset: 0;
-  background: rgba(255, 255, 255, .07);
-  backdrop-filter: blur(18px) saturate(1.35);
-  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  background: rgba(255, 255, 255, .13);
+  backdrop-filter: blur(30px) saturate(1.4);
+  -webkit-backdrop-filter: blur(30px) saturate(1.4);
   pointer-events: none;
 }
 
@@ -1024,10 +1036,13 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    photograph, and borrowing the squircle is what keeps it from reading as a foreign badge. The
    rim is a simplified --tile-bevel: that constant is calibrated for 60px, and its 1px highlight
    is proportionally three times heavier on a 22px square. */
+/* 24px, up from 22, and the glyph inside it went 13 -> 15. Both follow the heading, which is
+   17px/600 now: a 22px badge beside it read as a bullet point rather than as the section's mark.
+   The radius stays 22% of the width, which is Apple's own number for an icon of any size. */
 .section-heading__icon--chip {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
+  width: 24px;
+  height: 24px;
+  border-radius: 5.3px;
   corner-shape: var(--icon-corner);
   color: #fff;
   background: var(--section-accent);
@@ -1441,6 +1456,14 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 
 /* Folder preview: 7px padding, 2x2 of 20px cells, 6px gutter — 7+20+6+20+7 = 60. Measured off
    WeTab's own folder tiles, which use exactly this. */
+/* 7/20/6/20/7, measured off WeTab's own folder tiles, and the cell size is staying: routing the
+   children through the normal inset rule once drew them at 62% of an already 20px cell and the
+   folder read as four specks. What changed is the *bed*. Every child used to carry whatever
+   background its own artwork had, so a folder of four unrelated sites was four unrelated coloured
+   chips in a 2x2 — the single least resolved thing on the page, and a large part of what
+   "分类图标、APP图标总觉得缺少美观感受" was looking at. One bed under all four, the same white the
+   full-size tiles use, makes a folder read as one object holding four marks. It is the same rule
+   the grid already follows one level up, applied one level down. */
 .folder-preview {
   display: grid;
   grid-template-columns: repeat(2, 20px);
@@ -1457,18 +1480,26 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   /* Same curve as the tiles it previews, at the same 22.37% share of a 20px cell. */
   border-radius: 4.5px;
   corner-shape: var(--icon-corner);
-  /* Same bed as the full-size tile, so a folder previews what it actually contains. */
-  background: rgba(255, 255, 255, .82);
+  /* Same bed as the full-size tile, so a folder previews what it actually contains — and the
+     same bed for every child, whatever its artwork brings with it. */
+  background: linear-gradient(180deg, #fff, #f7f7f7);
 }
 .folder-preview__cell > * { width: 100%; height: 100%; }
-/* Artwork with its own background fills its chip, exactly as it fills a full tile. A bare mark is
-   inset instead: at 20px, a transparent logo drawn edge to edge runs into its neighbours and the
-   four chips read as one smudge rather than as four icons. */
-.folder-preview__cell .brand-icon[data-fit="contain"] { padding: 2px; }
+
 /* Same rule as the full tile: bed stays white, the accent goes into the glyphs. */
 .folder-preview__cell--letter { background: linear-gradient(180deg, #fff, #f7f7f7); }
 .folder-preview__cell--letter .letter-icon { color: var(--tile-accent, #4060f2); }
-.folder-preview__cell .brand-icon { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+/* Contained, not covering. A full-bleed logo used to be stretched over its whole chip, which is
+   what put four different background colours in one 60px tile; drawn as a mark on the shared bed
+   it is the same artwork reading as part of one object. 3px of air on a 20px chip is the same
+   share Apple leaves around the artwork inside an icon's squircle (832 of 1024). */
+.folder-preview__cell .brand-icon {
+  width: 100%;
+  height: 100%;
+  padding: 3px;
+  object-fit: contain;
+  border-radius: 4px;
+}
 .folder-preview__cell .letter-icon { font-size: 9px; font-weight: 700; }
 .folder-preview__cell .letter-icon[data-length="1"] { font-size: 11px; }
 .folder-preview__cell .letter-icon[data-length="3"] { font-size: 7px; }
@@ -1876,30 +1907,6 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   border-radius: 50%;
   color: #fff;
   background: rgba(0, 0, 0, .45);
-}
-
-.slider-row { display: grid; grid-template-columns: 40px 1fr 46px; align-items: center; gap: 12px; margin-top: 14px; }
-.slider-row > label { color: var(--t2); font-size: 13px; }
-.slider-row output { color: var(--t3); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
-.slider-row input[type="range"] {
-  width: 100%;
-  height: 4px;
-  margin: 0;
-  padding: 0;
-  border-radius: 999px;
-  background: var(--b2);
-  accent-color: #007aff;
-  cursor: pointer;
-  appearance: none;
-}
-.slider-row input[type="range"]::-webkit-slider-thumb {
-  width: 15px;
-  height: 15px;
-  border: 0;
-  border-radius: 50%;
-  background: #007aff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
-  appearance: none;
 }
 
 .ghost-button {

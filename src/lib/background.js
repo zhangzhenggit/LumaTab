@@ -3,7 +3,6 @@ import {
   BACKGROUND_META_KEY,
   backgroundCacheRequest,
   brightnessFrom,
-  DEFAULT_BLUR,
   findGradient,
   gradientCss,
   selectedImage,
@@ -22,7 +21,7 @@ export async function readCachedWallpaper() {
   try {
     const stored = await chrome.storage.local.get(BACKGROUND_META_KEY);
     const state = stored[BACKGROUND_META_KEY];
-    const tuning = { brightness: brightnessFrom(state), blur: state?.blur ?? DEFAULT_BLUR, brightnessAuto: state?.brightnessAuto !== false };
+    const tuning = { brightness: brightnessFrom(state), brightnessAuto: state?.brightnessAuto !== false };
     // A gradient is pure CSS: nothing to read, nothing to decode, so it is always ready on the
     // very first frame.
     const gradient = findGradient(state?.gradientKey);
@@ -95,20 +94,9 @@ export function chooseGradient(gradientKey) {
   return send({ type: "LUMATAB_SET_WALLPAPER", gradientKey });
 }
 
-export function tuneWallpaper({ brightness, blur }) {
-  return send({ type: "LUMATAB_SET_WALLPAPER", brightness, blur });
-}
-
 // Records a brightness the page worked out from the photo itself, without ending auto mode.
 export function storeAutoBrightness(brightness) {
   return send({ type: "LUMATAB_SET_WALLPAPER", brightness, auto: true });
-}
-
-// Puts brightness and blur back to their shipped values and hands brightness back to the tone
-// matcher. It needs its own flag: `auto: true` preserves the stored brightnessAuto rather than
-// setting it, so once the slider had been touched nothing could switch automatic mode back on.
-export function resetWallpaperTuning() {
-  return send({ type: "LUMATAB_SET_WALLPAPER", reset: true });
 }
 
 // Turns a cache URL from the library into something an <img> can display.

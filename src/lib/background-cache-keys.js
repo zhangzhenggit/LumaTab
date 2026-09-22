@@ -183,12 +183,11 @@ export function findGradient(key) {
   return GRADIENTS.find((gradient) => gradient.key === key) ?? null;
 }
 
-// WeTab exposes blur as a 0–100 slider and divides by five, so its maximum is 20px. Kept as-is.
-// A touch of blur out of the box: it pushes the photograph a step behind the tiles without
-// costing it its subject, which is most of what the grid needs from a background. 10 on this
-// scale is a 2px standard deviation — `filter: blur()` takes σ, not a Photoshop-style radius, so
-// small numbers here are genuinely subtle.
-export const DEFAULT_BLUR = 10;
+// Blur is gone, and so is the slider that set it. It existed to push the photograph a step
+// behind the tiles, and `.frost` now does that for the whole page at once and does it better: a
+// blur softens the picture and leaves its luminance alone, while frosting lifts and flattens it,
+// which is the half that actually buys the icons their contrast. Two controls that solve one
+// problem is one too many, and the one that stayed is not a control at all.
 
 // Brightness is bidirectional where WeTab's "mask" only ever darkened: 50 is the untouched
 // photo, below it lays down black and above it lays down white. A darken-only control cannot
@@ -230,15 +229,11 @@ export function brightnessFactor(brightness = DEFAULT_BRIGHTNESS) {
     : 1 - ((50 - level) / 50) * 0.55;
 }
 
-export function wallpaperFilterStyle({ brightness = DEFAULT_BRIGHTNESS, blur = DEFAULT_BLUR } = {}) {
-  const radius = clamp(blur, DEFAULT_BLUR) / 5;
-  const factor = brightnessFactor(brightness);
-  const filters = [`brightness(${factor.toFixed(3)})`];
-  if (radius > 0) filters.push(`blur(${radius}px)`);
-  return {
-    filter: filters.join(" "),
-    transform: radius > 0 ? `scale(${(1 + radius / 90).toFixed(4)})` : "none",
-  };
+export function wallpaperFilterStyle({ brightness = DEFAULT_BRIGHTNESS } = {}) {
+  // One filter now, and no transform. The blur used to need an overscan scale so its soft edges
+  // fell outside the viewport; with the blur gone the layer is left at exactly 1, which is also
+  // what lets the drift write `scale` without having to compose with anything.
+  return { filter: `brightness(${brightnessFactor(brightness).toFixed(3)})`, transform: "none" };
 }
 
 // True once the wallpaper is bright enough that white captions stop being legible. A photo has

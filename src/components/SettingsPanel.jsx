@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowClockwise, ArrowCounterClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@phosphor-icons/react";
+import { ArrowClockwise, Check, DownloadSimple, Globe, UploadSimple, X } from "@phosphor-icons/react";
 import { Silk } from "./Silk";
 import { wallpaperThumbnail } from "../lib/background";
 import { GRADIENTS } from "../lib/background-cache-keys";
@@ -67,25 +67,6 @@ function GradientSwatch({ gradient, active, onClick }) {
   );
 }
 
-function Slider({ id, label, value, min, max, onInput, onCommit, format }) {
-  return (
-    <div className="slider-row">
-      <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        type="range"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(event) => onInput(Number(event.target.value))}
-        onPointerUp={onCommit}
-        onKeyUp={onCommit}
-      />
-      <output>{format(value)}</output>
-    </div>
-  );
-}
-
 export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAccess, showClock, onToggleClock, onReplace, onMerge, notify }) {
   const [library, setLibrary] = useState(null);
   const [importError, setImportError] = useState("");
@@ -125,7 +106,6 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
   // while one is active.
   const usingGradient = Boolean(library?.gradientKey);
   const auto = !usingGradient && library?.mode !== "pinned";
-  const { tuning, resetTuning } = wallpaperApi;
 
   // A dropped reply must not blank the panel: keep whatever the library already held rather
   // than clearing the thumbnails and every selection state along with it.
@@ -242,44 +222,21 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
           </section>
 
           <section className="group">
-            <div className="group__head">
-              <h3 className="group__title">显示效果</h3>
-              {/* Never disabled, even when both sliders already read the defaults: reset also
-                  hands brightness back to automatic tone matching, which the panel cannot see and
-                  which is off for good once the slider has been dragged. A button greyed out at
-                  the default numbers would be unable to restore the one thing worth restoring. */}
-              <button className="ghost-button ghost-button--small" type="button" onClick={resetTuning}>
-                <ArrowCounterClockwise size={13} weight="bold" />重置
-              </button>
-            </div>
-            <p className="group__hint">调整背景的明暗与模糊程度，图标与文字不受影响。重置后亮度重新交给自动匹配。</p>
-            {/* A checkbox, not a slider: it belongs with the other things that change what the
-                page looks like, and it is the one control here that changes the layout rather
-                than the picture. */}
+            <div className="group__head"><h3 className="group__title">显示效果</h3></div>
+            {/* Two sliders used to live here, 亮度 and 模糊, and both are gone. Blur existed to
+                push the photograph a step behind the tiles; `.frost` now does that for the whole
+                page and does the half that matters — a blur softens the picture and leaves its
+                luminance alone, while frosting lifts and flattens it, and lifting is what buys
+                the icons their contrast. Brightness is measured from each photo instead of being
+                asked for: the tone matcher was always better at it than a slider the user has to
+                find and then get right, and it only ever deferred to the slider because a
+                measurement must not override a decision. With no decision to override it simply
+                runs. */}
+            <p className="group__hint">背景的明暗由每张图自动匹配，无需手动调整。</p>
             <label className="check">
               <input type="checkbox" checked={showClock} onChange={onToggleClock} />
               <span><b>显示时钟</b><small>页面顶部的时间与日期</small></span>
             </label>
-            <Slider
-              id="wp-brightness"
-              label="亮度"
-              min="0"
-              max="100"
-              value={tuning.brightness}
-              onInput={(brightness) => wallpaperApi.adjust({ brightness })}
-              onCommit={wallpaperApi.commitTuning}
-              format={(value) => (value === 50 ? "原图" : value > 50 ? `+${value - 50}` : `−${50 - value}`)}
-            />
-            <Slider
-              id="wp-blur"
-              label="模糊"
-              min="0"
-              max="100"
-              value={tuning.blur}
-              onInput={(blur) => wallpaperApi.adjust({ blur })}
-              onCommit={wallpaperApi.commitTuning}
-              format={(value) => (value ? `${value}%` : "关")}
-            />
           </section>
 
           <section className="group">

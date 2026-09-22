@@ -30,11 +30,14 @@ test("brightness scales the picture instead of veiling it", () => {
   for (const style of [dark, neutral, bright]) assert.doesNotMatch(style.filter, /rgba/);
 });
 
-test("blur scales the layer so its soft edges fall outside the viewport", () => {
-  assert.equal(wallpaperFilterStyle({ blur: 0 }).transform, "none");
-  const blurred = wallpaperFilterStyle({ blur: 100 });
-  assert.match(blurred.filter, /blur\(20px\)/);
-  assert.equal(Number(blurred.transform.match(/scale\(([\d.]+)\)/)[1]) > 1, true);
+test("the wallpaper filter is brightness and nothing else", () => {
+  // Blur is gone, and with it the overscan transform its soft edges needed. It existed to push
+  // the photograph a step behind the tiles; `.frost` does that for the whole page now and does
+  // the half that matters, because a blur softens a picture and leaves its luminance alone.
+  const style = wallpaperFilterStyle({ brightness: 50 });
+  assert.equal(style.filter, "brightness(1.000)");
+  assert.equal(style.transform, "none", "nothing scales the layer any more");
+  assert.doesNotMatch(wallpaperFilterStyle({ brightness: 90 }).filter, /blur/);
 });
 
 const hue = (hex) => {

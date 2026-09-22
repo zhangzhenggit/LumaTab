@@ -101,7 +101,7 @@ export function SectionHeading({
         <span
           className={`section-heading__icon ${section.accentColor ? "section-heading__icon--chip" : ""}`}
           style={section.accentColor ? { "--section-accent": section.accentColor } : undefined}
-        ><SectionIcon name={section.glyph} size={section.accentColor ? 13 : 17} /></span>
+        ><SectionIcon name={section.glyph} size={section.accentColor ? 15 : 17} /></span>
       )}
       {editing ? (
         <input

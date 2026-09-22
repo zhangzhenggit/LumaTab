@@ -1,27 +1,30 @@
 import { silkPalette, silkSeed } from "./background-cache-keys.js";
 
-// The solid background's renderer: a full-screen fragment shader that draws folded silk in the
-// preset's colours. Everything pure — which colours, which seed — lives in background-cache-keys
-// so the worker can import it and a test can assert it; this file is the part that needs a GPU.
+// The solid background's renderer: a full-screen fragment shader that draws a mesh gradient in
+// the preset's colours. Everything pure — which colours, which seed — lives in
+// background-cache-keys so the worker can import it and a test can assert it; this file is the
+// part that needs a GPU.
 //
-// Why a shader and not CSS. The previous solid background was three `filter: blur(90px)` discs
-// over a two-stop ramp, and it read as unfinished — "像基础 Demo" — for a structural reason: a
-// gaussian blob has no edge anywhere, and nothing built only from soft edges can look resolved.
-// What the eye reads as finished in a macOS or iOS wallpaper is *relief*: a surface with ridges
-// that catch light and troughs that fall away from it, which is geometry, not colour. CSS cannot
-// light a surface. A fragment shader can: build a height field from domain-warped noise, take
-// its slope with dFdx/dFdy, and shade it from one fixed light in the upper left. The result has
-// contours that are sharp exactly where a fold turns over and smooth everywhere else — which is
-// what "清晰" means for something that is not a photograph.
+// Two versions came before it and each was rejected for the opposite reason, which is what fixed
+// the target. Three `blur(90px)` discs over a ramp read as unfinished — every edge in a gaussian
+// blob is a falloff, and nothing built only from soft edges looks resolved. So the next version
+// built a height field and lit it, taking the slope with dFdx/dFdy and shading from one fixed
+// light. That gave it edges, and the edges read as crumpled fabric — "纯色褶皱效果不好". Relief
+// was the wrong kind of structure: Apple's own backdrops are not lit surfaces at all, and iOS 18's
+// MeshGradient is a grid of colours blended smoothly into each other, cloud-like, with no normals
+// anywhere in it.
+//
+// So the lighting is gone and colour does all the work. Having no derivatives also means WebGL1
+// needs no extension, so this draws on strictly more machines than the folded version did.
 //
 // It renders at a capped internal resolution and lets the browser scale the canvas up. The field
 // is low-frequency by construction, so the upscale is invisible, and the film grain layered over
 // the whole page (see .grain) is what puts pixel-level texture back. Cost is bounded by that cap,
 // not by the display.
 
-// Two GLSL dialects, one body. WebGL2 speaks ESSL 3.00, where derivatives are built in and the
-// fragment output is a declared variable; WebGL1 speaks ESSL 1.00 and needs the derivatives
-// extension. Everything below the preamble is shared, so the two cannot drift apart.
+// Two GLSL dialects, one body. WebGL2 speaks ESSL 3.00, where the fragment output is a declared
+// variable; WebGL1 speaks ESSL 1.00. Everything below the preamble is shared, so the two cannot
+// drift apart.
 const VERTEX_1 = `
 attribute vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
@@ -31,7 +34,6 @@ in vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
 `;
 const PREAMBLE_1 = `
-#extension GL_OES_standard_derivatives : enable
 precision highp float;
 `;
 const PREAMBLE_2 = `#version 300 es
@@ -73,9 +75,9 @@ float gnoise(vec2 p) {
     u.y);
 }
 mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
-// Three octaves, not four, and a steep falloff. A fourth octave at this scale puts detail in
-// the field that is finer than a fold — the first version had it and read as marbled liquid
-// rather than as cloth, because relief shading turns every one of those wrinkles into an edge.
+// Three octaves, not four, and a steep falloff. A fourth octave at this scale puts detail into the
+// field finer than the colour regions it is shaping, which reads as mottling rather than as a
+// blend — and when this field was still being lit, it read as marbled liquid.
 float fbm(vec2 p) {
   float v = 0.0;
   float a = 0.58;
@@ -85,10 +87,10 @@ float fbm(vec2 p) {
 }
 
 // Domain warping: the field is noise sampled through two layers of noise-driven displacement.
-// One layer gives blobs; two give the long, folded, self-similar bands that read as fabric.
-// Warp strength is what decides whether this reads as cloth or as a lava lamp. Strong warping
-// folds the field back over itself many times inside one screen, which is the marbling the first
-// attempt produced; gentle warping bends a handful of long bands, which is drapery.
+// One layer gives blobs, which is a lava lamp; two give long interleaving regions, which is what a
+// mesh gradient's control points produce when they are pulled about. Strong warping folds the
+// field back over itself many times inside one screen and turns it into marbling, so the strength
+// here is deliberately gentle.
 float field(vec2 p, float t) {
   vec2 q = vec2(fbm(p + vec2(0.0, 0.0) + 0.05 * t), fbm(p + vec2(5.2, 1.3) - 0.04 * t));
   vec2 r = vec2(fbm(p + 1.7 * q + vec2(1.7, 9.2) + 0.03 * t), fbm(p + 1.7 * q + vec2(8.3, 2.8) - 0.02 * t));
@@ -101,36 +103,26 @@ void main() {
   // Well under one noise cell across the screen: three or four folds, not thirty. This number is
   // the single biggest lever on whether the result looks calm, and it was 1.35 in the version
   // that came out as psychedelic marble.
-  p = rot(u_angle) * p * 0.95 + u_seed;
+  p = rot(u_angle) * p * 0.72 + u_seed;
   float h = field(p, u_time);
-  float v = clamp(h * 0.60 + 0.5, 0.0, 1.0);
+  float v = clamp(h * 0.78 + 0.5, 0.0, 1.0);
 
-  // Relief. The slope of the field is the surface normal; one light, fixed in the upper left,
-  // so every preset is lit the same way and the page keeps one light source with the tiles.
-  // Scaled by the viewport so a fold is lit the same way at any window size — the derivative is
-  // per device pixel, so without this the relief would fade as the window grows.
-  vec2 slope = vec2(dFdx(h), dFdy(h)) * u_res.y * 0.85;
-  vec3 n = normalize(vec3(-slope, 1.0));
-  vec3 l = normalize(vec3(-0.45, 0.62, 0.64));
-  float diff = clamp(dot(n, l), 0.0, 1.0);
-  float spec = pow(clamp(dot(reflect(-l, n), vec3(0.0, 0.0, 1.0)), 0.0, 1.0), 42.0);
+  // Colour is the whole thing now; there are no normals anywhere in here. The stops overlap
+  // generously so no two ever meet at an edge — what should read is one field of colour bleeding
+  // into the next, the way a mesh gradient does, rather than a height map that has been tinted.
+  vec3 col = mix(u_deep, u_base, smoothstep(0.00, 0.44, v));
+  col = mix(col, u_mid, smoothstep(0.30, 0.70, v));
+  col = mix(col, u_light, smoothstep(0.56, 1.00, v));
 
-  // Colour follows height: troughs deep, ridges light.
-  vec3 col = mix(u_deep, u_base, smoothstep(0.12, 0.48, v));
-  col = mix(col, u_mid, smoothstep(0.44, 0.74, v));
-  col = mix(col, u_light, smoothstep(0.70, 0.96, v));
-  // One contour carries the accent, faintly — a second colour along a single fold line is what
-  // separates silk from a tinted height map, and one line is all it takes.
-  float glint = smoothstep(0.16, 0.0, abs(v - 0.62)) * 0.13;
-  col = mix(col, u_accent, glint * (0.35 + 0.65 * diff));
+  // The accent arrives as its own broad region rather than along one contour. A contour is a
+  // line, and a line is exactly the kind of edge this version must not have; sampling a second,
+  // slower field at a different scale puts the colour in a place instead of on an edge.
+  float a = clamp(field(p * 0.64 + vec2(19.3, 7.1), u_time * 0.7) * 0.9 + 0.5, 0.0, 1.0);
+  col = mix(col, u_accent, smoothstep(0.58, 0.98, a) * 0.38);
 
-  // A narrow lighting range on purpose. The wallpaper's job is to be the thing the icons are in
-  // front of, so the fold that catches the most light and the one that catches the least have to
-  // stay within a few per cent of each other; at ±20% the folds themselves became the subject.
-  col *= 0.84 + 0.26 * diff;
-  col += u_light * spec * 0.10;
-  // Broad falloff toward the lower right, so the page has a lit side the way a room does.
-  col *= 0.90 + 0.20 * smoothstep(0.0, 1.0, uv.y * 0.55 + (1.0 - uv.x) * 0.45);
+  // One very broad falloff, and it is all that is left of the lighting. The fold shading it
+  // replaced is what made the surface read as crumpled fabric.
+  col *= 0.93 + 0.11 * smoothstep(0.0, 1.0, uv.y * 0.55 + (1.0 - uv.x) * 0.45);
 
   // One LSB of dither: the ramps here span whole screens and 8-bit output bands without it.
   col += (hash(gl_FragCoord.xy + fract(u_time)) - 0.5) / 255.0;
@@ -138,12 +130,11 @@ void main() {
 }
 `;
 
-// Internal resolution cap. 1600 across is enough that no fold edge is ever softened by the
-// upscale on a 2560 display, and the field's cost is flat past it.
+// Internal resolution cap. Nothing in the field has a hard edge any more, so the upscale has
+// nothing to soften; 1600 is simply well past the point where more pixels change the picture.
 const MAX_INTERNAL_WIDTH = 1600;
-// How fast the folds move. Slow enough to register as life rather than as an animation: about
-// one per cent of the page per second at the fold scale, the same order as the photograph's
-// drift, and for the same reason.
+// How fast the colour regions move. Slow enough to register as life rather than as an animation,
+// the same order as the photograph's drift and for the same reason.
 const TIME_SCALE = 0.22;
 
 function hexToRgb(hex) {
@@ -163,14 +154,13 @@ function compile(gl, type, source) {
 }
 
 function getContext(canvas, options) {
-  // WebGL2 has derivatives built in; WebGL1 needs the extension, and without it there is no
-  // relief to draw, so the caller falls back to the CSS ramp rather than to a flat field.
   const gl2 = canvas.getContext("webgl2", options);
   if (gl2) return { gl: gl2, vertex: VERTEX_2, fragment: PREAMBLE_2 + FRAGMENT_BODY };
+  // WebGL1 needs no extension. The folded version took the field's slope with dFdx/dFdy and so
+  // required OES_standard_derivatives; a mesh gradient has no normals to compute, so any context
+  // at all can draw it — the set of machines that get a real background is strictly larger now.
   const gl1 = canvas.getContext("webgl", options);
-  if (gl1 && gl1.getExtension("OES_standard_derivatives")) {
-    return { gl: gl1, vertex: VERTEX_1, fragment: PREAMBLE_1 + FRAGMENT_BODY };
-  }
+  if (gl1) return { gl: gl1, vertex: VERTEX_1, fragment: PREAMBLE_1 + FRAGMENT_BODY };
   return null;
 }
 
