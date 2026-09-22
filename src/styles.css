@@ -1044,7 +1044,8 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .section-heading__pill .section-heading__count { text-shadow: none; }
 .section-heading__pill .section-heading__count { color: var(--t3); opacity: 1; }
 
-.section-heading__caret { margin-left: -26px; }
+/* Collapsed state is the one thing the caret has to say, and it says it by turning. */
+.section-heading__caret { margin-left: 6px; }
 
 /* Sits on the rail, before the word. Filled and the same colour as the text, so a heading is
    one object rather than a badge with a caption — see SectionIcon for why it is not an emoji. */
@@ -1066,6 +1067,10 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
      palette, so the two can never disagree about what a section's colour looks like. */
   color: var(--section-accent, var(--t2));
 }
+/* `regular`, not `bold`. Bold was the first move away from `fill` and it over-corrected: next
+   to a 17px/600 word the bold outline read as heavier than the word — "尤其是图粗体". A symbol
+   is meant to sit *with* the text, and at 17px a regular-weight Phosphor stroke lands closest to
+   the visual weight of semibold type. */
 
 /* Tighter than the dialog's, which has a whole column to spend; this one lives in a 286px panel
    and reads as a strip rather than a block of tiles. Written as a descendant selector on purpose:
@@ -1478,12 +1483,19 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    "分类图标、APP图标总觉得缺少美观感受" was looking at. One bed under all four, the same white the
    full-size tiles use, makes a folder read as one object holding four marks. It is the same rule
    the grid already follows one level up, applied one level down. */
+/* 4/24/4/24/4, up from the 7/20/6/20/7 measured off WeTab. That measurement was kept through
+   three rounds of folder work because it was a measurement, and it turned out to be the actual
+   problem: a 20px cell minus its air left a 14px mark, and at 14px a favicon is a smudge and a
+   monogram is two letters — "从外面看就是两个字母看不到图形态". 24px cells with 1px of air put
+   the marks at 22px, 57% larger, which is the difference between recognising what is in a folder
+   and only knowing that something is. The tile is still 60px; what shrank is the frame around
+   the four marks, and a frame is exactly the part nobody needed to see. */
 .folder-preview {
   display: grid;
-  grid-template-columns: repeat(2, 20px);
-  grid-auto-rows: 20px;
-  gap: 6px;
-  padding: 7px;
+  grid-template-columns: repeat(2, 24px);
+  grid-auto-rows: 24px;
+  gap: 4px;
+  padding: 4px;
 }
 /* Each child fills its cell edge to edge. Leaving it centred at a fraction of the cell is what
    made the folder tile read as four specks — at this size the icon IS the cell. */
@@ -1491,8 +1503,8 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   display: grid;
   place-items: stretch;
   overflow: hidden;
-  /* Same curve as the tiles it previews, at the same 22.37% share of a 20px cell. */
-  border-radius: 4.5px;
+  /* Same curve as the tiles it previews, at the same 22.37% share of a 24px cell. */
+  border-radius: 5.4px;
   corner-shape: var(--icon-corner);
   /* No bed of its own. The folder tile is the white bed now, and four marks resting directly on
      it read as one object; four white chips inside a white tile read as a contact sheet with the
@@ -1511,13 +1523,13 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .folder-preview__cell .brand-icon {
   width: 100%;
   height: 100%;
-  padding: 3px;
+  padding: 1px;
   object-fit: contain;
   border-radius: 4px;
 }
-.folder-preview__cell .letter-icon { font-size: 9px; font-weight: 700; }
-.folder-preview__cell .letter-icon[data-length="1"] { font-size: 11px; }
-.folder-preview__cell .letter-icon[data-length="3"] { font-size: 7px; }
+.folder-preview__cell .letter-icon { font-size: 10.5px; font-weight: 700; }
+.folder-preview__cell .letter-icon[data-length="1"] { font-size: 13px; }
+.folder-preview__cell .letter-icon[data-length="3"] { font-size: 8px; }
 .folder-preview__cell .letter-icon[data-length="4"] { font-size: 6px; }
 
 /* ---------- open folder ---------- */

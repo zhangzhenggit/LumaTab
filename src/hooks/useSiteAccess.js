@@ -4,6 +4,8 @@ import { hasSiteAccess, requestSiteAccess, revokeSiteAccess } from "../lib/site-
 import { refreshSiteIcons, subscribeToIconUpdates } from "../lib/site-icon-cache";
 
 const DISMISSED_KEY = "lumatab.siteAccess.dismissed";
+// How long the refetch button may say it is working before it stops waiting for the worker.
+const REFETCH_DEADLINE_MS = 45_000;
 
 async function readDismissed() {
   try {
@@ -76,9 +78,20 @@ export function useSiteAccess(shortcuts, ready) {
 
   // The worker announces completion whether the run found anything or not, so the button always
   // comes back rather than spinning forever on a batch that resolved nothing.
+  //
+  // ...except when the announcement never arrives, which it can: MV3 may recycle the worker
+  // mid-batch, and on a network that has dropped every fetch waits out a proxy timeout before it
+  // fails. "正在重新抓取…" then sat for as long as the drawer was open. The deadline is a floor
+  // under that — generous enough that a slow but live run still finishes first, and when it fires
+  // nothing is lost, because every icon the run did land is already in the cache the grid polls.
   useEffect(() => subscribeToIconUpdates((diagnostics) => {
     if (diagnostics?.complete) setRefetching(false);
   }), []);
+  useEffect(() => {
+    if (!refetching) return undefined;
+    const deadline = setTimeout(() => setRefetching(false), REFETCH_DEADLINE_MS);
+    return () => clearTimeout(deadline);
+  }, [refetching]);
 
   const dismiss = useCallback(() => {
     setDismissed(true);

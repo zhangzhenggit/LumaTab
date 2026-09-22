@@ -55,7 +55,7 @@ export function eachLink(items = [], visit) {
   }
 }
 
-export const NEW_SECTION_NAME = "新分区";
+export const NEW_SECTION_NAME = "新分组";
 
 export function appendSection(items = [], id, name = NEW_SECTION_NAME) {
   return [...items, { id, type: SECTION, name }];

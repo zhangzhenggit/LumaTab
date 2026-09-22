@@ -66,7 +66,7 @@ export function ShortcutTile({ item, wave = 0, muted, selected, onActivate, onCo
       data-tile-id={item.id}
       role="link"
       tabIndex="0"
-      aria-label={item.type === "folder" ? `打开分组 ${item.name}` : `打开 ${item.name}`}
+      aria-label={item.type === "folder" ? `打开文件夹 ${item.name}` : `打开 ${item.name}`}
       onClick={(event) => {
         // Ctrl/Cmd-click builds a selection instead of opening the link, the way it does in
         // every file manager. A plain click always opens: this is a launcher first.

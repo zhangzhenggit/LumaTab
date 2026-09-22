@@ -4,7 +4,7 @@ export const TILE_CSS_PX = 60;
 // The 2x2 cells inside a folder tile (see .folder-preview). A source that is far too soft for a
 // 60px tile is still perfectly sharp at 20px, so thresholds are ratios of whatever surface the
 // icon is actually being drawn on rather than one absolute pixel count.
-export const PREVIEW_CSS_PX = 20;
+export const PREVIEW_CSS_PX = 24;
 
 // A resolved icon is always worth showing. An earlier revision discarded anything under ~57% of
 // the tile and fell back to a letter, which threw away the 16/32px favicons that most intranet

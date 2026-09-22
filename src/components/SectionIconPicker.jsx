@@ -30,7 +30,7 @@ export function SectionIconPicker({ picker, current, accent, onPick, onPickAccen
       <div
         className="icon-picker"
         role="dialog"
-        aria-label="分区图标"
+        aria-label="分组图标"
         style={{ left, top }}
         onMouseDown={(event) => event.stopPropagation()}
       >
@@ -38,7 +38,7 @@ export function SectionIconPicker({ picker, current, accent, onPick, onPickAccen
             two dozen of them; with six labelled shelves it would have to belong to one of them,
             and it belongs to none. */}
         <div className="icon-picker__head">
-          <span className="icon-picker__title">分区图标</span>
+          <span className="icon-picker__title">分组图标</span>
           <button
             type="button"
             className={`icon-picker__clear ${current ? "" : "icon-picker__clear--on"}`}

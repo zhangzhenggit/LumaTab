@@ -13,7 +13,7 @@ export function ItemContextMenu({ menu, item, onClose, onEdit, onPickIcon, onTog
     <div className="context-layer" role="presentation" onMouseDown={onClose} onContextMenu={(event) => event.preventDefault()}>
       <div className="context-menu" role="menu" style={{ left, top }} onMouseDown={(event) => event.stopPropagation()}>
         <button type="button" role="menuitem" onClick={onEdit}>
-          <PencilSimple size={18} /><span>{isSection ? (item.name ? "重命名分区" : "命名分区") : item.type === "folder" ? "重命名分组" : "编辑快捷链接"}</span>
+          <PencilSimple size={18} /><span>{isSection ? (item.name ? "重命名分组" : "命名分组") : item.type === "folder" ? "重命名文件夹" : "编辑快捷链接"}</span>
         </button>
         {isSection && (
           <button type="button" role="menuitem" onClick={onPickIcon}>
@@ -23,17 +23,17 @@ export function ItemContextMenu({ menu, item, onClose, onEdit, onPickIcon, onTog
         {isSection && (
           <button type="button" role="menuitem" onClick={onToggleCollapse}>
             {collapsed ? <ArrowsOutLineVertical size={18} /> : <ArrowsInLineVertical size={18} />}
-            <span>{collapsed ? "展开分区" : "折叠分区"}</span>
+            <span>{collapsed ? "展开分组" : "折叠分组"}</span>
           </button>
         )}
         {menu.folderId && (
           <button type="button" role="menuitem" onClick={onMoveOut}>
-            <ArrowUp size={18} /><span>移出分组</span>
+            <ArrowUp size={18} /><span>移出文件夹</span>
           </button>
         )}
         {item.type === "folder" && (
           <button type="button" role="menuitem" onClick={onDissolve}>
-            <FolderOpen size={18} /><span>解散分组</span>
+            <FolderOpen size={18} /><span>解散文件夹</span>
           </button>
         )}
         {item.type === "link" && (
@@ -46,7 +46,7 @@ export function ItemContextMenu({ menu, item, onClose, onEdit, onPickIcon, onTog
             there, and the red in this menu has to keep meaning "this loses something". */}
         {isSection && (
           <button type="button" role="menuitem" onClick={onDelete}>
-            <Trash size={18} /><span>删除分区</span>
+            <Trash size={18} /><span>删除分组</span>
           </button>
         )}
       </div>

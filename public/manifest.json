@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "LumaTab · 浮光新页",
   "short_name": "LumaTab",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "一个干净的新标签页：每日壁纸、可拖放的快捷方式与分组。无广告，无账号，不收集数据。",
   "homepage_url": "https://zhengnest.com/projects/lumatab",
   "minimum_chrome_version": "109",

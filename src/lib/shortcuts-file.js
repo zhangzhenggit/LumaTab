@@ -23,14 +23,14 @@ export function validateShortcutPayload(payload) {
     // the grid, and refusing it here would silently drop every divider on import.
     if (!name && item.type !== SECTION) throw new Error("文件中有条目缺少名称");
     if (item.type === "folder") {
-      if (depth > 0) throw new Error("不支持嵌套分组");
+      if (depth > 0) throw new Error("不支持嵌套文件夹");
       const children = Array.isArray(item.children) ? item.children : [];
       return { id: createId(), type: "folder", name, children: clean(children, depth + 1) };
     }
     // A heading divides the top-level grid and means nothing inside a folder, so one that turns
     // up there is a malformed file rather than something to quietly drop.
     if (item.type === SECTION) {
-      if (depth > 0) throw new Error("分组内不能再分区");
+      if (depth > 0) throw new Error("文件夹内不能再分组");
       return {
         id: createId("section"),
         type: SECTION,

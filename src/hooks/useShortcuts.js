@@ -288,7 +288,7 @@ export function useShortcuts(notify) {
       // The link that just left may have been the second-to-last, leaving a one-item folder.
       return collapseThinFolders([...next, item]);
     });
-    notify("已移出分组");
+    notify("已移出文件夹");
   }
 
   // Import lands through one of these two. Icons are resolved for whatever arrives so imported
@@ -348,7 +348,7 @@ export function useShortcuts(notify) {
   // reason nothing in this feature needs a confirmation dialog.
   function deleteSection(id) {
     setShortcuts((current) => removeSection(current, id));
-    notify("分区已删除，链接已并入上一区");
+    notify("分组已删除，链接已并入上一组");
   }
 
   function reorderFolder(folderId, children) {
@@ -363,7 +363,7 @@ export function useShortcuts(notify) {
       if (folderIndex < 0) return current;
       return [...current.slice(0, folderIndex), ...current[folderIndex].children, ...current.slice(folderIndex + 1)];
     });
-    notify("分组已解散");
+    notify("文件夹已解散");
   }
 
 

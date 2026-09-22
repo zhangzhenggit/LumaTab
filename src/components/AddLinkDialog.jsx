@@ -155,7 +155,7 @@ export function AddLinkDialog({ open, item = null, onClose, onSubmit }) {
     <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="dialog" role="dialog" aria-modal="true" aria-labelledby="add-title" onMouseDown={(event) => event.stopPropagation()}>
         <header className="dialog__header">
-          <div><p className="dialog__eyebrow">{item ? "编辑" : "新快捷链接"}</p><h2 id="add-title">{item?.type === "folder" ? "重命名分组" : item ? "修改快捷链接" : "添加到浮光新页"}</h2></div>
+          <div><p className="dialog__eyebrow">{item ? "编辑" : "新快捷链接"}</p><h2 id="add-title">{item?.type === "folder" ? "重命名文件夹" : item ? "修改快捷链接" : "添加到浮光新页"}</h2></div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="关闭"><X size={20} /></button>
         </header>
         <form className="dialog__form" onSubmit={submit} key={item?.id ?? "new-link"}>

@@ -192,7 +192,7 @@ export function FolderPanel({ folder, tile, onClose, onItemContextMenu, onExtrac
             ) : null}
           </DragOverlay>
         </DndContext>
-        {dragging && <p className="folder-stage__hint">拖动排序，拖出面板即可移出分组</p>}
+        {dragging && <p className="folder-stage__hint">拖动排序，拖出面板即可移出文件夹</p>}
       </div>
     </div>
   );

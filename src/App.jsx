@@ -249,7 +249,7 @@ export function App({ initialWallpaper = null }) {
                   <SectionDropCell section={block.marker} wave={blockIndex} armed={dropIndicator?.targetId === block.marker.id} />
                 )}
                 {/* One "+", at the very end of the grid, so a new link joins whichever section is
-                    last — the same direction "新建分区" grows the page in. */}
+                    last — the same direction "新建分组" grows the page in. */}
                 {blockIndex === blocks.length - 1 && (
                   <AddTile wave={blockIndex} onClick={() => setAddDialog(true)} />
                 )}
@@ -265,7 +265,7 @@ export function App({ initialWallpaper = null }) {
                     {/* Also the anchor for the last seam - a section dropped past everything
                         lands here, and this row is the only thing always at the bottom. */}
                     <span className="section-seam" aria-hidden="true" data-armed={sectionPlan?.atSeam === blocks.length ? "" : undefined} />
-                    <Plus size={13} weight="bold" aria-hidden="true" /><span>新建分区</span>
+                    <Plus size={13} weight="bold" aria-hidden="true" /><span>新建分组</span>
                   </button>
                 )}
               </Fragment>
@@ -274,7 +274,7 @@ export function App({ initialWallpaper = null }) {
           <DragOverlay dropAnimation={null}>
             {activeItem && <ShortcutGhost item={activeItem} count={carried.length} />}
             {activeSection && (
-              <span className="section-ghost">{activeSection.name || "未命名分区"}</span>
+              <span className="section-ghost">{activeSection.name || "未命名分组"}</span>
             )}
           </DragOverlay>
         </DndContext>

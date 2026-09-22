@@ -39,7 +39,7 @@ test("a heading opens a block, and an empty one above it is not invented", () =>
   const trailing = sectionsOf([link("a"), heading("s1"), link("b")]);
   assert.deepEqual(trailing.map((b) => b.marker?.id ?? null), [null, "s1"]);
 
-  // A heading with nothing under it is a real block: it is what "新建分区" produces, and it has
+  // A heading with nothing under it is a real block: it is what "新建分组" produces, and it has
   // to render so there is somewhere to drop the first link.
   const empty = sectionsOf([link("a"), heading("s1")]);
   assert.deepEqual(empty.map((b) => b.tiles.length), [1, 0]);
@@ -146,7 +146,7 @@ test("headings survive a round trip through a file, and old files still open", (
   // A heading inside a folder is not something to quietly drop: it means the file is malformed.
   assert.throws(() => validateShortcutPayload([
     { type: "folder", name: "F", children: [{ type: "section", name: "X" }] },
-  ]), /分区/);
+  ]), /分组/);
 });
 
 // The exporter and the importer are a matched pair, and the way that pair breaks is one of them

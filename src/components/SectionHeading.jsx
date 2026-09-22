@@ -42,17 +42,31 @@ export function SectionHeading({
     const input = inputRef.current;
     if (!input) return;
     input.focus();
-    // Selected, not caret-at-end: a heading is born named "新分区" and every one of those is
+    // Selected, not caret-at-end: a heading is born named "新分组" and every one of those is
     // meant to be typed straight over.
     input.select();
   }, [editing]);
 
   const controls = (
     <>
+      {/* Collapse leads the group. It used to hang off the LEFT of the label with a negative
+          margin, which made a hovered heading read as "⌄ [pill] ··· ⠿" — three marks on two
+          sides of an object, and the one on the left looked like it belonged to the row above.
+          Every action a heading has now hangs off the same side, in the order it is used:
+          collapse, then more, then move. */}
+      {!compact && (
+        <button
+          type="button"
+          className="section-heading__caret"
+          aria-label={collapsed ? "展开分组" : "折叠分组"}
+          aria-expanded={!collapsed}
+          onClick={onToggleCollapse}
+        ><CaretDown size={13} weight="bold" /></button>
+      )}
       <button
         type="button"
         className="section-heading__menu"
-        aria-label="分区操作"
+        aria-label="分组操作"
         onClick={onContextMenu}
         onContextMenu={onContextMenu}
       ><DotsThree size={18} weight="bold" /></button>
@@ -60,7 +74,7 @@ export function SectionHeading({
         ref={setNodeRef}
         type="button"
         className="section-heading__grip"
-        aria-label="拖动以移动分区"
+        aria-label="拖动以移动分组"
         {...attributes}
         {...listeners}
       ><DotsSixVertical size={16} weight="bold" /></button>
@@ -86,15 +100,6 @@ export function SectionHeading({
       <span className="section-seam" aria-hidden="true" data-armed={seamArmed ? "" : undefined} />
       {collapsed && <span className="shortcut__icon section-heading__target" aria-hidden="true" />}
       {!compact && (
-        <button
-          type="button"
-          className="section-heading__caret"
-          aria-label={collapsed ? "展开分区" : "折叠分区"}
-          aria-expanded={!collapsed}
-          onClick={onToggleCollapse}
-        ><CaretDown size={13} weight="bold" /></button>
-      )}
-      {!compact && (
       // The pill is an inner element, never the row. The row has to keep spanning the whole grid
       // because `.section-seam` — the landing indicator for a dragged section — is absolutely
       // positioned across it, and a row that shrank to hug its label would shrink the seam with
@@ -119,8 +124,8 @@ export function SectionHeading({
           className="section-heading__input"
           value={draft}
           maxLength={MAX_NAME}
-          aria-label="分区名称"
-          placeholder="分区名称（可留空）"
+          aria-label="分组名称"
+          placeholder="分组名称（可留空）"
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => {
             if (cancelled.current) { cancelled.current = false; return; }
@@ -153,7 +158,7 @@ export function SectionHeading({
         // which is also the only way back to naming it. No pill here: an empty name is a divider,
         // and a divider with a glass chip floating on it is a caption again.
         <span className="section-heading__float">
-          <button type="button" className="section-heading__add" onClick={onStartEdit}>命名此分区</button>
+          <button type="button" className="section-heading__add" onClick={onStartEdit}>命名此分组</button>
           {controls}
         </span>
       )}

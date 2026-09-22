@@ -69,6 +69,12 @@ function GradientSwatch({ gradient, active, onClick }) {
 
 export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAccess, showClock, onToggleClock, onReplace, onMerge, notify }) {
   const [library, setLibrary] = useState(null);
+  // The archive fetch has three outcomes, not two: it can land, it can fail, and it can still be
+  // in flight. The panel used to show the same "正在获取…" line for the last two, which meant a
+  // network that had dropped looked exactly like one that was slow — and stayed that way for as
+  // long as the drawer was open. `libraryFailed` is the third state, and it is what turns a
+  // permanent spinner into a sentence.
+  const [libraryFailed, setLibraryFailed] = useState(false);
   const [importError, setImportError] = useState("");
   const [pendingImport, setPendingImport] = useState(null);
   const fileRef = useRef(null);
@@ -87,9 +93,14 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
     let disposed = false;
     setImportError("");
     setPendingImport(null);
+    setLibraryFailed(false);
+    // The worker answers null when Bing cannot be reached; a dropped reply is the same case.
+    // Either way the archive is not coming, and the panel has to say so rather than wait.
     void apiRef.current.loadWallpaperLibrary().then((next) => {
-      if (!disposed) setLibrary(next);
-    });
+      if (disposed) return;
+      if (next) setLibrary(next);
+      else setLibraryFailed(true);
+    }).catch(() => { if (!disposed) setLibraryFailed(true); });
     function onKeyDown(event) {
       if (event.key === "Escape") onClose();
     }
@@ -206,7 +217,9 @@ export function SettingsPanel({ open, onClose, wallpaperApi, shortcuts, siteAcce
                   />
                 ))}
               </div>
-              : <p className="group__hint">正在获取可用壁纸…</p>}
+              : libraryFailed
+                ? <p className="group__hint">暂时取不到必应壁纸，请检查网络后重新打开设置。</p>
+                : <p className="group__hint">正在获取可用壁纸…</p>}
 
             <h4 className="group__label">纯色背景</h4>
             <div className="gradient-grid">
