@@ -113,13 +113,33 @@ test("ink keeps the accent's own hue and leaves dark accents alone", async () =>
 
 // The fit is written as an inline style, so it cannot be overridden from the stylesheet — a CSS
 // rule for it was written once, read correctly in the source, and did nothing at all. Whatever
-// decides it has to be the component, and this pins that it is.
-test("a folder-preview chip is always contained, whatever the artwork carries", async () => {
+// decides it has to be the component, and this pins that it is — and pins that it is ONE rule
+// for both sizes. A folder child spent a round forced to `contain` (to stop four children on one
+// shared bed clashing); with each child in its own mini tile the artwork's own answer is right
+// again, and a second rule for the small size would be one more thing to drift.
+test("the fit is decided in the component, by the artwork, at every size", async () => {
   const source = await (await import("node:fs/promises"))
     .readFile(new URL("../src/components/BrandIcon.jsx", import.meta.url), "utf8");
-  assert.match(source, /const fit = !compact && item\._iconFullBleed \? "cover" : "contain"/,
-    "the compact chip must not inherit the full-size cover/contain rule");
+  assert.match(source, /const fit = item\._iconFullBleed \? "cover" : "contain"/,
+    "one fit rule, from the artwork, for the grid and the folder preview alike");
   assert.match(source, /objectFit: fit/, "the inline style must use the decided fit");
-  assert.doesNotMatch(source, /objectFit: item\._iconFullBleed/,
-    "deciding the fit from the artwork alone is what let a folder become four coloured chips");
+  assert.doesNotMatch(source, /!compact && item\._iconFullBleed/,
+    "the compact size must not carry its own fit rule");
+});
+
+// A folder is a different surface from a link, and its children are tiles of their own — that
+// pairing is the whole message ("icons inside"), and it only works as a pair. White children on
+// a white folder have no edge and read as loose marks; a grey folder with bare marks reads as a
+// smudged link. Both halves shipped separately at different points and both looked wrong.
+test("a folder bed is a neutral a step below white, and its children are white tiles on it", async () => {
+  const css = await (await import("node:fs/promises"))
+    .readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const folder = /\n\.shortcut__icon--folder \{([\s\S]*?)\n\}/.exec(css);
+  assert.ok(folder, ".shortcut__icon--folder rule is gone");
+  assert.doesNotMatch(folder[1], /#fff\b/, "a folder must not share the links' white bed");
+  assert.doesNotMatch(folder[1], /backdrop-filter/, "a folder must stay opaque — glass took the wallpaper's cast");
+  const cell = /\n\.folder-preview__cell \{([\s\S]*?)\n\}/.exec(css);
+  assert.ok(cell, ".folder-preview__cell rule is gone");
+  assert.match(cell[1], /#fff\b/, "every child must sit on its own white tile");
+  assert.match(cell[1], /box-shadow/, "a child tile needs an edge of its own");
 });

@@ -726,9 +726,20 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    white links — "分组图标还是不好看" — which is the very cast the link tiles were made opaque to
    escape ("背景好像也不是白色"), left behind on the two variants that were not fixed with them.
    A folder is a container of links; it belongs to the links' material, not to the page's. */
-.shortcut__icon--folder,
 .shortcut__icon--add {
   background: linear-gradient(180deg, #fff, #f7f7f7);
+}
+/* A folder is a different surface from a link, and it has to be, or nothing inside it can have a
+   shape. This is the iOS folder: a light neutral bed, opaque so it takes no cast from the
+   wallpaper (the translucent version came out khaki over a golden photo), and one step below the
+   links' white so that a white mini-tile placed on it has an edge. On a white folder the same
+   mini-tile is invisible and its contents read as loose marks — "FE WH" floating on a card,
+   which is what "从外面看就是两个字母看不到图形态" was pointing at, and which one round of work
+   made worse by removing the mini-tiles altogether. Being a different surface also does the other
+   job a folder icon has: it is identifiable as a folder from across the room, which a white tile
+   with four dots on it never was. Equal-channel greys, same 3% top-lit ramp as the white bed. */
+.shortcut__icon--folder {
+  background: linear-gradient(180deg, #ececf0, #e3e3e8);
 }
 /* On an opaque white bed the "+" needs no halo — the white drop-shadow it used to carry existed
    for a bed whose tone followed the wallpaper, and it also replaced the tile shadow wholesale
@@ -1506,27 +1517,29 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   /* Same curve as the tiles it previews, at the same 22.37% share of a 24px cell. */
   border-radius: 5.4px;
   corner-shape: var(--icon-corner);
-  /* No bed of its own. The folder tile is the white bed now, and four marks resting directly on
-     it read as one object; four white chips inside a white tile read as a contact sheet with the
-     frames still on. */
-  background: transparent;
+  /* A mini tile, with the links' own white bed and a hairline of its own. The child has to have
+     a shape, because the shape is the whole message: four shapes on a neutral field say "icons
+     inside", four loose marks say nothing, and two loose letters say something wrong. It is the
+     folder bed underneath, a step darker, that lets this white edge exist at all. */
+  background: linear-gradient(180deg, #fff, #f7f7f7);
+  box-shadow:
+    inset 0 0 0 .5px rgba(0, 0, 0, .06),
+    0 1px 2px rgba(0, 0, 0, .10);
 }
 .folder-preview__cell > * { width: 100%; height: 100%; }
 
-/* Same rule as the full tile: bed stays white, the accent goes into the glyphs. */
-.folder-preview__cell--letter { background: linear-gradient(180deg, #fff, #f7f7f7); }
 .folder-preview__cell--letter .letter-icon { color: var(--tile-accent, #4060f2); }
-/* Contained, not covering. A full-bleed logo used to be stretched over its whole chip, which is
-   what put four different background colours in one 60px tile; drawn as a mark on the shared bed
-   it is the same artwork reading as part of one object. 3px of air on a 20px chip is the same
-   share Apple leaves around the artwork inside an icon's squircle (832 of 1024). */
+/* The same rule as a full-size tile, one level down: artwork that paints its own background
+   fills its mini tile edge to edge, a bare mark sits contained on the white. Forcing everything
+   to `contain` was tried when the children had no beds of their own, to stop four different
+   backgrounds clashing on one shared surface; with each child in its own tile those backgrounds
+   are separate objects again, exactly as they are on a home screen. */
 .folder-preview__cell .brand-icon {
   width: 100%;
   height: 100%;
-  padding: 1px;
-  object-fit: contain;
-  border-radius: 4px;
+  border-radius: inherit;
 }
+.folder-preview__cell .brand-icon[data-fit="contain"] { padding: 2px; }
 .folder-preview__cell .letter-icon { font-size: 10.5px; font-weight: 700; }
 .folder-preview__cell .letter-icon[data-length="1"] { font-size: 13px; }
 .folder-preview__cell .letter-icon[data-length="3"] { font-size: 8px; }
