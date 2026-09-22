@@ -428,10 +428,17 @@ test("no glass surface animates its own opacity", async () => {
     if (/opacity/.test(keyframes[anim[1]] ?? "")) offenders.push(`${selector.trim()} → ${anim[1]}`);
   }
   assert.deepEqual(offenders, [], "these glass surfaces fade in as a whole, which disables their blur mid-entrance");
-  // The folder is the ancestor form of the same defect, which the scan above cannot see: the
-  // animation is on .folder-stage--anchored and the backdrop-filter on .folder-panel inside it.
-  // An opacity group on the ancestor disables the descendant's blur just the same — this was the
-  // one actually reported.
-  assert.doesNotMatch(keyframes["folder-stage-in"], /opacity/,
-    "the folder stage must scale in without fading — its panel's blur is off for the whole fade otherwise");
+  // The ancestor form of the same defect, which the scan above cannot see: an opacity group on any
+  // ancestor disables a descendant's blur just the same. It was reported twice — first on the
+  // folder's stage, then, after that was fixed, one level further out on its scrim. These are the
+  // wrappers that hold a glass element; each may fade its colour, never its opacity.
+  const wrappers = [".folder-backdrop", ".folder-stage--anchored", ".dialog-backdrop", ".context-layer"];
+  for (const wrapper of wrappers) {
+    const rule = new RegExp(`\\n${wrapper.replace(/[.-]/g, "\\$&")} \\{([^}]*)\\}`).exec(css);
+    assert.ok(rule, `${wrapper} rule is gone`);
+    const anim = /animation:\s*([\w-]+)/.exec(rule[1]);
+    if (!anim) continue;
+    assert.doesNotMatch(keyframes[anim[1]] ?? "", /opacity/,
+      `${wrapper} fades in with opacity, which switches off the blur of the glass inside it for the whole fade`);
+  }
 });

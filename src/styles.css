@@ -1558,13 +1558,20 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 
 /* ---------- open folder ---------- */
 
+/* The scrim fades by animating its COLOUR, never its opacity. It is the outermost ancestor of a
+   backdrop-filter element, and an ancestor at opacity < 1 puts the whole subtree in an offscreen
+   group with no backdrop to sample — the panel's blur is off for the entire fade and switches on
+   in one frame at the end. That was "打开瞬间先显示一下背景再隐藏", reported AFTER the stage's own
+   fade had been fixed for exactly this reason: the same trap one level further out. A colour
+   transition is a paint, not a group. */
 .folder-backdrop {
   position: fixed;
   z-index: 18;
   inset: 0;
   background: rgba(0, 0, 0, .2);
-  animation: fade-in var(--dur-2) var(--ease-out);
+  animation: scrim-in var(--dur-2) var(--ease-out);
 }
+@keyframes scrim-in { from { background-color: transparent; } }
 /* A folder's contents are the same size as the grid's — WeTab's own `.home-folder` sets exactly
    the same --icon-padding-x/--icon-gap-x/--icon-padding-y as `.home-icon` and overrides
    --icon-size in neither, so an opened folder reads as a slice of the grid rather than as a
@@ -1729,7 +1736,8 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   place-items: center;
   padding: 24px;
   background: rgba(0, 0, 0, .28);
-  animation: fade-in var(--dur-1) var(--ease-out);
+  /* Colour, not opacity — see .folder-backdrop. The dialog inside is glass. */
+  animation: scrim-in var(--dur-1) var(--ease-out);
 }
 .dialog {
   width: min(420px, 100%);
