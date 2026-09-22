@@ -4,7 +4,6 @@ import { isSection, SECTION } from "./sections.js";
 // Every value iconMode may hold. Something outside this list is not rejected — it is read as
 // "auto", because a file written by a newer version must still import into an older one.
 const ICON_MODES = ["auto", "generated", "custom"];
-import { normalizeSectionAccent, normalizeSectionIcon } from "./section-icons.js";
 
 // Reading and writing the export file. Pulled out of useShortcuts because none of it is stateful
 // and all of it is exactly the sort of thing that should be assertable without a React tree — the
@@ -31,13 +30,10 @@ export function validateShortcutPayload(payload) {
     // up there is a malformed file rather than something to quietly drop.
     if (item.type === SECTION) {
       if (depth > 0) throw new Error("文件夹内不能再分组");
-      return {
-        id: createId("section"),
-        type: SECTION,
-        name,
-        glyph: normalizeSectionIcon(item.glyph),
-        accentColor: normalizeSectionAccent(item.accentColor),
-      };
+      // A file written while headings could carry a glyph and a colour still imports: the
+      // two fields are simply not read any more, the way any field this build does not know
+      // about is not read.
+      return { id: createId("section"), type: SECTION, name };
     }
     return {
       id: createId(),
@@ -71,7 +67,7 @@ export function cleanForExport(items = []) {
     // Section headings travel with the file but carry no id: import mints fresh ids for
     // everything, so writing one would only put a stale number in the export.
     if (isSection(item)) {
-      return { type: SECTION, name: item.name, glyph: item.glyph ?? null, accentColor: item.accentColor ?? null };
+      return { type: SECTION, name: item.name };
     }
     return { type: "link", name: item.name, url: item.url, iconMode: item.iconMode };
   });

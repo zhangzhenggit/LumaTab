@@ -1038,7 +1038,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .section-heading__caret svg { transition: transform var(--dur-2) var(--ease-out); }
 /* The caret leads the title, so it sits in the margin rather than pushing the text off the
    rail every other heading and tile is aligned to. */
-/* One piece of glass holding the glyph and the word. Chosen over a bare tinted symbol because the
+/* One piece of glass holding the word. Chosen over a bare tinted symbol because the
    page is frosted end to end now: a heading with no surface of its own floats in the same plane as
    everything else, while a pill is an object sitting on that plane and puts a visible edge between
    the label and the grid it names.
@@ -1046,13 +1046,13 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    absolutely positioned across the full row, and a row that shrank to hug its label would shrink
    the seam with it; `.section-heading__target` is pinned to the icon rail for the same reason.
    The pill's own left edge sits on that rail, so the block still lines up with the icons under it;
-   what moved is which part of the heading the rail catches — the object rather than the glyph. */
+   what moved is which part of the heading the rail catches — the object rather than the word. */
 .section-heading__pill {
   display: inline-flex;
   align-items: center;
   min-width: 0;
   max-width: 100%;
-  padding: 5px 14px 5px 11px;
+  padding: 5px 14px;
   border-radius: 999px;
   color: var(--t1);
   background: rgba(255, 255, 255, .55);
@@ -1068,40 +1068,6 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 
 /* Collapsed state is the one thing the caret has to say, and it says it by turning. */
 .section-heading__caret { margin-left: 6px; }
-
-/* Sits on the rail, before the word. Filled and the same colour as the text, so a heading is
-   one object rather than a badge with a caption — see SectionIcon for why it is not an emoji. */
-/* A symbol beside the word, not a tile. It was a 24px saturated squircle carrying the tile's own
-   corner curve — the same shape, material and corner as the links below it — so a heading badge
-   read as one more link, and the glyph inside it was too small to be anything but noise. Apple's
-   own symbols are typographic: they align with the text, take its weight, and carry one colour.
-   The weight went from `fill` to `bold` at the same time. Fill was chosen originally because a
-   line glyph at 17px over a bare photograph loses its interior to whatever is behind it and reads
-   as texture — true then, and no longer true: `.frost` flattens and lifts the whole backdrop, so
-   a line glyph now has a calm field to sit on, and at this size it is far cleaner than a filled
-   pictogram with interior detail (the Calendar glyph carries a numeral inside it). */
-.section-heading__icon {
-  display: grid;
-  place-items: center;
-  margin-right: 8px;
-  /* Ink, not the raw accent. The pill is light glass, and the derivation that makes a monogram
-     readable on a white tile is the one that makes a glyph readable here — same function, same
-     palette, so the two can never disagree about what a section's colour looks like. */
-  color: var(--section-accent, var(--t2));
-}
-/* `regular`, not `bold`. Bold was the first move away from `fill` and it over-corrected: next
-   to a 17px/600 word the bold outline read as heavier than the word — "尤其是图粗体". A symbol
-   is meant to sit *with* the text, and at 17px a regular-weight Phosphor stroke lands closest to
-   the visual weight of semibold type. */
-
-/* Tighter than the dialog's, which has a whole column to spend; this one lives in a 286px panel
-   and reads as a strip rather than a block of tiles. Written as a descendant selector on purpose:
-   `.accent-grid` is defined much further down in the settings drawer, and a single-class override
-   up here would lose to it on source order — which is exactly how it shipped wrapped onto two
-   rows of oversized swatches the first time. */
-.icon-picker .accent-grid { grid-template-columns: repeat(12, 1fr); gap: 4px; }
-.icon-picker .accent-swatch { border-radius: 5px; }
-.icon-picker .accent-swatch:hover { transform: translateY(-1px); }
 
 .section-heading__count {
   margin-left: 2px;
@@ -1378,75 +1344,6 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 }
 
 
-/* A closed set of two dozen glyphs, laid out eight to a row. Closed on purpose: an emoji
-   picker would put a different typeface, colour and optical weight on every heading, which is
-   the same failure the tile bevel had one level down. */
-.icon-picker {
-  position: fixed;
-  z-index: 60;
-  padding: 8px;
-  border-radius: 14px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-line) inset;
-  animation: dialog-in var(--dur-2) var(--ease-out);
-}
-.icon-picker__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 4px 8px 6px;
-}
-.icon-picker__title { color: var(--t2); font-size: 12px; font-weight: 600; }
-.icon-picker__clear {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border: 0;
-  border-radius: 999px;
-  color: var(--t2);
-  font-size: 12px;
-  font-family: inherit;
-  background: rgba(0, 0, 0, .06);
-  cursor: pointer;
-  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
-}
-.icon-picker__clear:hover { background: rgba(0, 0, 0, .11); color: var(--t1); }
-.icon-picker__clear--on,
-.icon-picker__clear--on:hover { color: #fff; background: #0a84ff; }
-
-.icon-picker__group + .icon-picker__group { margin-top: 6px; }
-.icon-picker__label {
-  display: block;
-  padding: 0 0 3px 6px;
-  color: var(--t3);
-  font-size: 11px;
-  letter-spacing: .04em;
-}
-.icon-picker__grid {
-  display: grid;
-  /* Kept in step with SECTION_ICON_COLUMNS; a test pins that every group fills whole rows. */
-  grid-template-columns: repeat(8, 34px);
-  gap: 2px;
-}
-.icon-picker__cell {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  color: var(--t2);
-  background: transparent;
-  cursor: pointer;
-  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
-}
-.icon-picker__cell:hover { background: rgba(0, 0, 0, .07); color: var(--t1); }
-.icon-picker__cell--on { color: #fff; background: #0a84ff; }
-.icon-picker__cell--on:hover { background: #0a84ff; color: #fff; }
 
 
 /* ---------- icon content ---------- */
@@ -2131,8 +2028,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes dialog-in { from { transform: translateY(8px) scale(.98); } }
-.dialog > *,
-.icon-picker > * { animation: fade-in var(--dur-2) var(--ease-out) backwards; }
+.dialog > * { animation: fade-in var(--dur-2) var(--ease-out) backwards; }
 
 /* Tile size is deliberately constant across desktop widths. WeTab treats it as a preference,
    not a breakpoint — a wider window earns more columns, not bigger icons, which is what keeps a

@@ -290,133 +290,36 @@ test("the rules that override a tile's icon are written after it", async () => {
     "the drop seam takes up layout, so arming it would move the grid mid-drag");
 });
 
-// `icon` is a reserved word in this data. storage.js drops every field called that, because
+// `icon` is a reserved word in this data: storage.js drops every field called that, because
 // links used to carry a preset-icon field under that name and a stale one would resurrect
-// artwork the user had replaced. A section glyph written as `icon` renders perfectly and then
-// vanishes on the next reload, which is precisely how this was found — nothing in the render
-// path or the export path can catch it, only a real round trip through storage.
-test("a section's glyph survives being written to storage", async () => {
+// artwork the user had replaced. Headings briefly carried a glyph, and it had to be stored as
+// `glyph` for exactly that reason. The glyph is gone; the strip is not.
+test("the legacy `icon` field is still stripped on the way into storage", async () => {
   const { stripTransientFields } = await import("../src/lib/storage.js");
-  const { setSectionIcon, normalizeSectionIcon, SECTION_ICONS } = await import("../src/lib/section-icons.js");
-
-  const picked = setSectionIcon([heading("s", "工作")], "s", SECTION_ICONS[0]);
-  assert.equal(picked[0].glyph, SECTION_ICONS[0]);
-  assert.equal(stripTransientFields(picked)[0].glyph, SECTION_ICONS[0]);
-
-  // The legacy field is still stripped, from links and from anything else carrying one.
   const legacy = stripTransientFields([{ ...link("a"), icon: "old-preset", _iconUrl: "blob:x" }]);
   assert.deepEqual(Object.keys(legacy[0]).sort(), ["id", "name", "type", "url"]);
-
-  // Clearing the glyph, and refusing a name that is not in the set.
-  assert.equal(setSectionIcon(picked, "s", null)[0].glyph, null);
-  assert.equal(setSectionIcon(picked, "s", "NotAnIcon")[0].glyph, null);
-  assert.equal(normalizeSectionIcon("Briefcase"), "Briefcase");
-  assert.equal(setSectionIcon(picked, "s", SECTION_ICONS[0]), picked, "a no-op rewrote storage");
 });
 
-test("a glyph travels with the file, and an unknown one is dropped, not fatal", async () => {
+// A heading is a word and a break in the grid, and nothing else. It spent a version carrying a
+// glyph from a closed set of 48, optionally coloured, and the glyph is the thing people looked
+// at: "有点丑". So the file carries the name alone — and a file written by the version that had
+// glyphs still imports, with those two fields simply not read, the way any field this build does
+// not know about is not read.
+test("a section carries a name and nothing else, and an older file still imports", async () => {
   const { cleanForExport } = await import("../src/lib/shortcuts-file.js");
+  const live = [{ ...heading("s", "工作"), glyph: "Robot", accentColor: "#fd5a5a" }, link("a")];
+  assert.deepEqual(cleanForExport(live)[0], { type: "section", name: "工作" });
+
   const round = validateShortcutPayload({
-    shortcuts: cleanForExport([{ ...heading("s", "工作"), glyph: "Robot" }, link("a")]),
+    shortcuts: [
+      { type: "section", name: "工作", glyph: "Robot", accentColor: "#fd5a5a" },
+      { type: "link", name: "A", url: "https://a.test/" },
+    ],
   });
-  assert.equal(round[0].glyph, "Robot");
-
-  // A file from a later version can name a glyph this build has never heard of. Losing the
-  // picture is a far better outcome than refusing to import the links underneath it.
-  const future = validateShortcutPayload([
-    { type: "section", name: "未来", glyph: "SomethingNew" },
-    { type: "link", name: "A", url: "https://a.test/" },
-  ]);
-  assert.equal(future[0].glyph, null);
-  assert.equal(countLinks(future), 1);
-});
-
-// Every shelf in the picker has to fill whole rows, or the panel ends a group on an orphan.
-test("every icon group fills whole rows, and every glyph has a word", async () => {
-  const { SECTION_ICON_GROUPS, SECTION_ICONS, SECTION_ICON_COLUMNS, isSectionIcon, sectionIconLabel } =
-    await import("../src/lib/section-icons.js");
-
-  for (const group of SECTION_ICON_GROUPS) {
-    assert.equal(group.icons.length % SECTION_ICON_COLUMNS, 0,
-      `"${group.label}" holds ${group.icons.length} glyphs, which leaves a short row`);
-    assert.ok(group.label, "a group with no label is a wall, not a shelf");
-  }
-
-  assert.equal(new Set(SECTION_ICONS).size, SECTION_ICONS.length, "the set has a duplicate in it");
-  assert.ok(SECTION_ICONS.every(isSectionIcon) && !isSectionIcon("Nope"));
-  // Forty-eight silhouettes with no words is a search, not a choice; the label is the tooltip.
-  for (const key of SECTION_ICONS) {
-    assert.ok(sectionIconLabel(key), `${key} has no label to show on hover`);
-  }
-});
-
-// Every key is a storage value as well as a picker entry. Dropping one does not merely take it
-// out of the panel: every section already using it silently loses its glyph on the next load,
-// with nothing anywhere to say why. Renaming the set is fine; shrinking it is not.
-test("no glyph that has ever shipped can be removed from the set", async () => {
-  const { isSectionIcon } = await import("../src/lib/section-icons.js");
-  const shipped = [
-    "Briefcase", "Code", "Terminal", "Bug", "Robot", "Wrench", "ChartLine", "Package",
-    "PaintBrush", "Palette", "Camera", "FilmSlate", "MusicNotes", "BookOpen", "GraduationCap",
-    "Newspaper", "House", "ShoppingCart", "ForkKnife", "Airplane", "GameController", "ChatCircle",
-    "Heart",
-  ];
-  const lost = shipped.filter((key) => !isSectionIcon(key));
-  assert.deepEqual(lost, [], `these keys are in users' storage and no longer render: ${lost.join(", ")}`);
-});
-
-// The picker names its glyphs; SectionIcon is what actually draws them. A key in one and not the
-// other renders nothing at all, and nothing in the build says so.
-test("every glyph the picker offers can actually be drawn", async () => {
-  const { SECTION_ICONS } = await import("../src/lib/section-icons.js");
-  const source = await (await import("node:fs/promises"))
-    .readFile(new URL("../src/components/SectionIcon.jsx", import.meta.url), "utf8");
-  const map = source.slice(source.indexOf("const GLYPHS = {"), source.indexOf("};", source.indexOf("const GLYPHS = {")));
-  // Split on anything that is not a name character, so no regex escaping is involved.
-  const names = new Set(map.split(/[^A-Za-z0-9]+/));
-  for (const key of SECTION_ICONS) {
-    assert.ok(names.has(key), `${key} is offered by the picker but not imported`);
-  }
-});
-
-// Colour is opt-in and comes from the palette the generated letter tiles already use, so a
-// coloured heading is drawn from the same eleven fills as the grid under it rather than
-// introducing a second palette nobody reconciled with the first.
-test("a section's colour comes from the tile palette, or is nothing at all", async () => {
-  const { SECTION_ACCENTS, setSectionAccent, isSectionAccent } = await import("../src/lib/section-icons.js");
-  const { ACCENTS } = await import("../src/lib/icons.js");
-  assert.deepEqual(SECTION_ACCENTS, ACCENTS, "the headings grew a palette of their own");
-
-  const items = [heading("s", "工作"), link("a")];
-  const painted = setSectionAccent(items, "s", ACCENTS[0]);
-  assert.equal(painted[0].accentColor, ACCENTS[0]);
-  assert.equal(painted[0].name, "工作", "colouring rewrote something else about the section");
-
-  // Anything off-palette is no colour rather than an error — same rule the glyph follows. Tested
-  // from the painted state, because clearing something already clear is a no-op that returns the
-  // original array untouched, and an untouched section has no such field at all.
-  assert.equal(setSectionAccent(painted, "s", "#123456")[0].accentColor, null);
-  assert.equal(setSectionAccent(painted, "s", null)[0].accentColor, null);
-  assert.equal(setSectionAccent(items, "s", "#123456"), items, "clearing a clear section rewrote storage");
-  assert.ok(isSectionAccent(ACCENTS[0]) && !isSectionAccent("red"));
-  assert.equal(setSectionAccent(painted, "s", ACCENTS[0]), painted, "a no-op rewrote storage");
-});
-
-test("glyph and colour both travel with the file", async () => {
-  const { cleanForExport } = await import("../src/lib/shortcuts-file.js");
-  const { ACCENTS } = await import("../src/lib/icons.js");
-  const live = [{ ...heading("s", "工作"), glyph: "Briefcase", accentColor: ACCENTS[2] }, link("a")];
-  const round = validateShortcutPayload({ shortcuts: cleanForExport(live) });
-  assert.equal(round[0].glyph, "Briefcase");
-  assert.equal(round[0].accentColor, ACCENTS[2]);
-
-  // A colour this build has never heard of is dropped, not fatal.
-  const future = validateShortcutPayload([
-    { type: "section", name: "未来", glyph: "Robot", accentColor: "#abcdef" },
-    { type: "link", name: "A", url: "https://a.test/" },
-  ]);
-  assert.equal(future[0].accentColor, null);
-  assert.equal(future[0].glyph, "Robot");
+  assert.equal(round[0].name, "工作");
+  assert.equal(round[0].glyph, undefined, "the importer put the glyph back");
+  assert.equal(round[0].accentColor, undefined, "the importer put the colour back");
+  assert.equal(countLinks(round), 1, "an older file must still bring its links in");
 });
 
 // The heading's glass pill is an INNER element, never the row itself. The row has to keep

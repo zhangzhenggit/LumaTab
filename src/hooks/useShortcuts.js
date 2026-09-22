@@ -9,7 +9,6 @@ import { applyCachedSiteIcons, prepareSiteIcons, subscribeToIconUpdates } from "
 import { useTileFlip } from "./useTileFlip";
 import { useSelection } from "./useSelection";
 import { measureTiles, typeMap } from "../lib/grid-metrics";
-import { setSectionAccent, setSectionIcon } from "../lib/section-icons";
 
 export function useShortcuts(notify) {
   const [shortcuts, setShortcuts] = useState([]);
@@ -332,14 +331,6 @@ export function useShortcuts(notify) {
     setShortcuts((current) => toggleCollapse(current, id));
   }
 
-  function setSectionAccentTo(id, color) {
-    setShortcuts((current) => setSectionAccent(current, id, color));
-  }
-
-  function setSectionIconTo(id, key) {
-    setShortcuts((current) => setSectionIcon(current, id, key));
-  }
-
   function renameSectionTo(id, name) {
     setShortcuts((current) => renameSection(current, id, name));
   }
@@ -380,7 +371,7 @@ export function useShortcuts(notify) {
     toggleSelected: selection.toggle, clearSelection: selection.clear,
     carried: activeId ? carriedRef.current : [],
     addLink, saveEditedItem, deleteItem, moveItemOut, dissolveFolder, reorderFolder,
-    addSection, renameSectionTo, deleteSection, toggleSectionCollapse, setSectionIconTo, setSectionAccentTo,
+    addSection, renameSectionTo, deleteSection, toggleSectionCollapse,
     sectionPlan: dropPlan?.kind === DROP_SECTION ? dropPlan : null,
     replaceAll, mergeIn,
   };

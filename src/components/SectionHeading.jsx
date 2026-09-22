@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { CaretDown, DotsSixVertical, DotsThree } from "@phosphor-icons/react";
 import { useDraggable } from "@dnd-kit/core";
 import { isCollapsed, isNamed } from "../lib/sections";
-import { SectionIcon } from "./SectionIcon";
-import { accentInk } from "../lib/icons";
 
 const MAX_NAME = 24;
 
@@ -105,19 +103,6 @@ export function SectionHeading({
       // positioned across it, and a row that shrank to hug its label would shrink the seam with
       // it. It is also what keeps `.section-heading__target` on the icon rail.
       <span className="section-heading__pill">
-      {section.glyph && (
-        // A symbol beside the word, not a tile. It spent a while as a saturated squircle carrying
-        // the tile's own corner curve, and that was the problem: same shape, same material and
-        // same corner as the links below it, so the eye read a 24px heading badge as one more
-        // link. Apple's own symbols are typographic — they align with the text, take its weight
-        // and carry one colour — and that is what this is now.
-        // The colour is `accentInk`, not the raw accent: the pill is light glass, and the same
-        // derivation that makes a monogram readable on a white tile makes a glyph readable here.
-        <span
-          className="section-heading__icon"
-          style={section.accentColor ? { "--section-accent": accentInk(section.accentColor) } : undefined}
-        ><SectionIcon name={section.glyph} size={17} /></span>
-      )}
       {editing ? (
         <input
           ref={inputRef}
