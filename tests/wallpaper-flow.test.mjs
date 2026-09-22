@@ -282,12 +282,20 @@ test("the grain and the vignette go over the edge bands, not under them", async 
   assert.ok(layer(".vignette") > layer(".edge"), "the edge tint is sitting on top of the vignette");
   assert.ok(layer(".edge") > layer(".wallpaper"), "the edge tint is under the wallpaper");
 
+  // The frost is a full-page backdrop-filter, and a backdrop-filter blurs everything painted
+  // below it. Over the grain it would dissolve the one-pixel dither across the whole page —
+  // which is the bug the edge tints already caused once from the same position — so it has to
+  // stay under both the grain and the vignette, and over the photograph it is frosting.
+  assert.ok(layer(".grain") > layer(".frost"), "the frost is smearing the film grain");
+  assert.ok(layer(".vignette") > layer(".frost"), "the frost is sitting over the vignette");
+  assert.ok(layer(".frost") > layer(".wallpaper"), "the frost is under the wallpaper it frosts");
+
   // The markup order has to agree with the z-indexes, or the next person to read either is
   // misled about which layer sees which.
   const app = await read("App.jsx");
-  const order = [...app.matchAll(/className="(edge edge--top|edge edge--bottom|vignette|grain)"/g)]
+  const order = [...app.matchAll(/className="(edge edge--top|edge edge--bottom|frost|vignette|grain)"/g)]
     .map(([, name]) => name);
-  assert.deepEqual(order, ["edge edge--top", "edge edge--bottom", "vignette", "grain"]);
+  assert.deepEqual(order, ["edge edge--top", "edge edge--bottom", "frost", "vignette", "grain"]);
   // Eight <i> in the bottom band, none in the top.
   assert.match(app, /<div className="edge edge--top" aria-hidden="true" \/>/);
   assert.match(app, /<div className="edge edge--bottom" aria-hidden="true" \/>/);
@@ -360,33 +368,41 @@ test("the tile shadow does not compound into a dark rim, least of all on white",
   }
 });
 
-// The glass under the grid lives on a pseudo-element, and that is not a style choice.
+// The frost is a sibling of the wallpaper, never a wrapper around the grid, and the reason is the
+// trap `.folder-panel` already documents from the inside. `backdrop-filter` creates a stacking
+// context; the drop caret sits at z-index 1000 so it can outrank dnd-kit's drag overlay at 999,
+// and both of those live outside any such wrapper. Wrap the grid in a filtered element and the
+// pair is clamped inside it, so the caret vanishes under the drag ghost at exactly the moment it
+// is the only thing saying where the tile will land.
 //
-// `backdrop-filter` creates a stacking context. The drop caret sits at z-index 1000 so it can
-// outrank dnd-kit's drag overlay at 999, and BOTH of those live outside the panel — so putting
-// the filter on `.shortcut-panel` itself clamps every z-index inside it and the caret disappears
-// under the drag ghost at exactly the moment it is the only thing telling you where the tile will
-// land. `.folder-panel` already documents this trap from the other side, where its own
-// backdrop-filter traps its caret; this is the same rule met from outside.
-test("the shortcut panel creates no stacking context of its own", async () => {
+// The floating card this replaced had the same hazard and dodged it by putting the filter on a
+// pseudo-element. Full-bleed glass does not need that dodge at all — the layer is not in the
+// content's ancestry to begin with — which is one more reason it is the simpler of the two.
+test("nothing between the page and the grid carries a backdrop-filter", async () => {
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-  const block = /\n\.shortcut-panel \{([\s\S]*?)\n\}/.exec(css);
-  assert.ok(block, ".shortcut-panel is missing");
-  for (const property of ["backdrop-filter", "filter:", "transform:", "will-change", "mix-blend-mode"]) {
-    assert.ok(!block[1].includes(property),
-      `.shortcut-panel must not carry ${property} — it would clamp the drop caret under the drag overlay`);
+  const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+  assert.ok(!app.includes("shortcut-panel"), "the grid must not be wrapped in a filtered container");
+  for (const selector of ["\\.newtab__content", "\\.shortcut-grid"]) {
+    const block = new RegExp(`\\n${selector} \\{([\\s\\S]*?)\\n\\}`).exec(css);
+    assert.ok(block, `${selector} rule is gone`);
+    assert.ok(!block[1].includes("backdrop-filter"),
+      `${selector} must not carry a backdrop-filter — it would clamp the drop caret under the drag overlay`);
   }
-  // z-index only creates a stacking context on a positioned element, which this one is.
-  assert.ok(!/\n\s*z-index:/.test(block[1]), ".shortcut-panel must keep z-index: auto");
-  // ...and the material has to actually be somewhere, or the panel is invisible.
-  assert.match(css, /\.shortcut-panel::before \{[\s\S]*?backdrop-filter:/,
-    "the glass must live on the pseudo-element");
 });
 
-// Sixteen columns was measured off WeTab and was right for a page with no container on it: the
-// grid was the page. Inside a panel the cap is a composition decision — at sixteen the panel
-// becomes a 2000px band across a photograph and stops reading as an object.
-test("the grid is capped at ten columns so the panel stays an object", async () => {
+// A generated surface is already unified; a photograph is arbitrary and is what the frost exists
+// for. Frosting the silk would soften the fold edges that are the entire point of rendering it.
+test("a solid background never gets frosted", async () => {
+  const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+  assert.match(app, /\{!wallpaper\.gradient && <div className="frost"/,
+    "the frost must be skipped for a solid background");
+});
+
+// Sixteen columns was measured off WeTab and was right for a page with no container on it and no
+// clock: the grid was the page, so letting it use the display was the only way to fill one. With
+// a focal point above it the cap is a composition decision — at sixteen the grid runs out to both
+// screen edges and pulls the eye away from the centre line everything else now sits on.
+test("the grid is capped at ten columns", async () => {
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
   const cap = /--max-columns:\s*(\d+)/.exec(css);
   assert.ok(cap, "--max-columns is missing");

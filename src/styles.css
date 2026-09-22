@@ -215,7 +215,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    overscan is untouched. Do not move the animation back into this file. */
 .wallpaper {
   position: fixed;
-  z-index: -4;
+  z-index: -5;
   inset: 0;
   background-position: center;
   background-size: cover;
@@ -232,7 +232,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   pointer-events: none;
 }
 
-/* Layer order, bottom to top: .wallpaper (-4), .edge (-3), .vignette (-2), .grain (-1).
+/* Layer order, bottom to top: .wallpaper (-5), .edge (-4), .frost (-3), .vignette (-2), .grain (-1).
    The edge sits BELOW the vignette and the grain, which is the reverse of how it shipped. Above
    them, its backdrop-filter blurred the grain along with the photograph — so the film dither,
    whose whole job is to be one uniform one-pixel texture over the entire page, dissolved into
@@ -300,7 +300,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    On a light wallpaper the tint drops and the labels' own shadow takes over. */
 .edge {
   position: fixed;
-  z-index: -3;
+  z-index: -4;
   right: 0;
   left: 0;
   pointer-events: none;
@@ -497,53 +497,39 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 
 /* ---------- shortcut grid ---------- */
 
-/* One glass sheet under the whole grid.
-   Before it, tiles floated on the photograph with nothing anchoring them anywhere on the page —
-   which is most of what "像基础 Demo" was pointing at. There was no container in the product at
-   all, so the picture and the icons competed for the same plane instead of one framing the other.
-   A single sheet is also what Apple's own guidance asks for: one primary glass surface per view,
-   never two translucent panes stacked.
+/* One sheet of glass over the whole photograph.
+   The alternative shipped first and was a floating card under the grid, which gave the content an
+   edge and made the picture a frame. This is the other answer to the same question: instead of
+   giving the content a boundary, the whole page becomes one surface. They are mutually exclusive,
+   not layers of one idea, which is why the card is gone rather than sitting inside this.
 
-   **The glass is on a pseudo-element, and that is load-bearing.** `backdrop-filter` creates a
-   stacking context, and the drop caret (.shortcut__caret, z-index 1000) has to outrank dnd-kit's
-   drag overlay at 999 — both of which live outside this panel. Put the filter on .shortcut-panel
-   itself and every one of those z-indexes is clamped inside it, so the caret vanishes underneath
-   the ghost exactly when it matters. This is the same trap .folder-panel already documents, met
-   from the other side. .shortcut-panel therefore stays `position: relative` with `z-index: auto`,
-   which does NOT create a stacking context, and ::before carries the material.
-   A test pins the absence of a backdrop-filter on the panel itself. */
-.shortcut-panel {
-  position: relative;
-  flex: 0 0 auto;
-  align-self: center;
-  max-width: 100%;
-  padding: 26px 26px 30px;
-  border-radius: 28px;
-  /* Held back until the grid is ready, so the sheet and the tiles arrive together rather than an
-     empty pane appearing first and filling in. */
-  opacity: 0;
-  transition: opacity var(--dur-3) var(--ease-out);
-}
-.shortcut-panel--ready { opacity: 1; }
-.shortcut-panel::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
+   It is deliberately the weakest of the settings that were rendered side by side. At 26% white
+   over blur(64px) the page is beautifully clean and the photograph is unrecognisable, which makes
+   a daily wallpaper pointless; at 7% over blur(18px) the picture is still a picture and the page
+   is still one surface. Legibility was never this layer's job — the label shadow, the edge tints
+   and the tone matcher already do that — so it only has to unify, and a light touch unifies just
+   as well as a heavy one.
+
+   **It sits UNDER the grain and the vignette**, which is why it is a backdrop layer here rather
+   than a background on a wrapper around the content. A backdrop-filter blurs everything painted
+   below it, so a full-page one laid over the grain would dissolve the one-pixel dither across the
+   entire page — exactly the bug the edge tints already caused once, when they sat on top. The
+   vignette stays above it too, so the corners are darkened after the frosting rather than being
+   smeared by it.
+
+   **A solid background never gets one.** Silk is a surface this page renders itself, with relief
+   that is the whole point of it; frosting that would soften the fold edges and undo the thing it
+   exists for. A photograph is arbitrary and needs unifying; a generated surface is already
+   unified. */
+.frost {
+  position: fixed;
+  z-index: -3;
   inset: 0;
-  border-radius: inherit;
-  /* Much thinner than either glass recipe in :root. Those two are for surfaces that sit *over*
-     the page and have to be read through; this one sits *under* the whole grid and its only job
-     is to give the tiles a plane to rest on. At the chrome recipe's 55% it became a white slab
-     and took the photograph with it. */
-  background: rgba(255, 255, 255, .14);
-  backdrop-filter: blur(34px) saturate(1.5);
-  -webkit-backdrop-filter: blur(34px) saturate(1.5);
-  box-shadow: var(--glass-rim), 0 20px 60px -24px rgba(0, 0, 0, .6);
+  background: rgba(255, 255, 255, .07);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
   pointer-events: none;
 }
-/* Captions sit on the panel now, not straight on the photograph, so the shadow that was carrying
-   them over arbitrary pixels is doing nothing but thickening the text. */
-.shortcut-panel .shortcut__name { text-shadow: 0 1px 2px rgba(0, 0, 0, .28); }
 
 .shortcut-grid {
   display: grid;

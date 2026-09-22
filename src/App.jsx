@@ -182,6 +182,11 @@ export function App({ initialWallpaper = null }) {
           styles.css for the full autopsy — and do not put layers back in here. */}
       <div className="edge edge--top" aria-hidden="true" />
       <div className="edge edge--bottom" aria-hidden="true" />
+      {/* One sheet of glass over the whole photograph, so the page is a single surface rather
+          than a grid of objects sitting on a picture. It is a backdrop layer and not a wrapper
+          around the content on purpose — see .frost in styles.css for why it has to sit under
+          the grain, and why a solid background never gets one. */}
+      {!wallpaper.gradient && <div className="frost" aria-hidden="true" />}
       <div className="vignette" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
       {siteAccess.showPrompt && (
@@ -200,13 +205,6 @@ export function App({ initialWallpaper = null }) {
             reason — the tile has already moved to its new cell by the time the ghost lands, so
             flying the ghost back to where the drag began would animate to the wrong place. */}
         <DndContext sensors={sensors} onDragStart={dragStart} onDragMove={shortcutsApi.dragMove} onDragEnd={shortcutsApi.dragEnd} onDragCancel={shortcutsApi.resetDragState}>
-          {/* One glass sheet under the whole grid. Before it the tiles floated on the photograph
-              with nothing anchoring them, which is most of what "像基础 Demo" was pointing at: the
-              page had no container anywhere, so the picture and the icons competed instead of one
-              framing the other. It wraps the grid ONLY — DragOverlay below is its sibling on
-              purpose, and the glass lives on a pseudo-element for the same reason. See
-              .shortcut-panel. */}
-          <div className={`shortcut-panel ${ready ? "shortcut-panel--ready" : ""}`}>
           <section className={`shortcut-grid ${ready ? "shortcut-grid--ready" : ""} ${activeId ? "shortcut-grid--editing" : ""}`} aria-label="快捷链接">
             {blocks.map((block, blockIndex) => (
               <Fragment key={block.marker?.id ?? "lead"}>
@@ -273,7 +271,6 @@ export function App({ initialWallpaper = null }) {
               </Fragment>
             ))}
           </section>
-          </div>
           <DragOverlay dropAnimation={null}>
             {activeItem && <ShortcutGhost item={activeItem} count={carried.length} />}
             {activeSection && (
