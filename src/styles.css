@@ -718,27 +718,24 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   background: linear-gradient(180deg, #fff, #f7f7f7);
 }
 .shortcut__icon--letter .letter-icon { color: var(--tile-accent, #4060f2); }
-/* Also thin glass: a folder tile and the Add tile are 60px of almost pure surface sitting on the
-   wallpaper, with no text to protect. At 80% white they were opaque white squares. */
-/* No --glass-rim here any more: --tile-bevel is the same recipe applied to every tile in the
-   grid, and stacking both put two highlights on one edge. */
+/* The same opaque bed as every other tile — and this is a reversal. Folder and Add tiles were
+   thin glass (55% white over a blur) on the reasoning that they are 60px of almost pure surface
+   with no text to protect, so they could afford to be the one place in the grid that actually
+   looked like glass. What that missed is what glass does over a coloured photograph: it takes the
+   colour. Over a golden wallpaper every folder tile came out khaki, sitting in a row of opaque
+   white links — "分组图标还是不好看" — which is the very cast the link tiles were made opaque to
+   escape ("背景好像也不是白色"), left behind on the two variants that were not fixed with them.
+   A folder is a container of links; it belongs to the links' material, not to the page's. */
 .shortcut__icon--folder,
 .shortcut__icon--add {
-  background: var(--glass-thin-bg);
-  backdrop-filter: var(--glass-thin-filter);
-  -webkit-backdrop-filter: var(--glass-thin-filter);
+  background: linear-gradient(180deg, #fff, #f7f7f7);
 }
-/* The Add tile is the one tile with no artwork and no caption, so the "+" IS the tile — and at
-   --t3 on a pane whose tone follows the wallpaper it was a grey square with a smudge in it,
-   which is what "影视仓旁边那个灰方块" was pointing at. It cannot take a fixed ink: the bed is
-   55% white over a blur, so over a dark wallpaper it is mid grey and over a light one it is near
-   white. What works on both is a glyph that carries its own contrast — a dark mark with a white
-   halo under it, the same trick the captions use in reverse. */
-.shortcut__icon--add {
-  color: var(--t2);
-  filter: drop-shadow(0 0 3px rgba(255, 255, 255, .85));
-}
-.shortcut:hover .shortcut__icon--add { color: var(--t1); }
+/* On an opaque white bed the "+" needs no halo — the white drop-shadow it used to carry existed
+   for a bed whose tone followed the wallpaper, and it also replaced the tile shadow wholesale
+   (a `filter` override drops --tile-shadow), which is why the Add tile sat flatter than its
+   neighbours. Quiet ink, so it reads as an empty slot rather than as one more link. */
+.shortcut__icon--add { color: var(--t3); }
+.shortcut:hover .shortcut__icon--add { color: var(--t2); }
 
 .shortcut__label {
   display: block;
@@ -1497,9 +1494,10 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   /* Same curve as the tiles it previews, at the same 22.37% share of a 20px cell. */
   border-radius: 4.5px;
   corner-shape: var(--icon-corner);
-  /* Same bed as the full-size tile, so a folder previews what it actually contains — and the
-     same bed for every child, whatever its artwork brings with it. */
-  background: linear-gradient(180deg, #fff, #f7f7f7);
+  /* No bed of its own. The folder tile is the white bed now, and four marks resting directly on
+     it read as one object; four white chips inside a white tile read as a contact sheet with the
+     frames still on. */
+  background: transparent;
 }
 .folder-preview__cell > * { width: 100%; height: 100%; }
 
