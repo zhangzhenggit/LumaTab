@@ -367,6 +367,29 @@ test("the heading's pill wraps the label, not the row", async () => {
 // A cleared name is a divider, not a caption — so it gets no pill at all. A glass chip floating
 // in a zero-height row would be a caption again, which is the one thing clearing the name asks to
 // be rid of.
+// The "···" menu and the "⠿" grip that used to hang off the heading on hover are gone: the chip
+// drags, and the menu is its right-click. Both jobs have to land on the chip itself, and the
+// drag has to let go of the field while it is open, or pressing into the text to select a word
+// would carry the whole section off.
+test("the chip is the section's handle and its menu", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const jsx = await readFile(new URL("../src/components/SectionHeading.jsx", import.meta.url), "utf8");
+  assert.doesNotMatch(jsx, /section-heading__(menu|grip)/,
+    "the hover marks are back; the chip was supposed to take both jobs");
+
+  const pill = jsx.slice(jsx.indexOf('className="section-heading__pill"'));
+  const open = pill.slice(0, pill.indexOf(">"));
+  assert.match(open, /onContextMenu=\{onContextMenu\}/, "right-click must open the menu on the chip");
+  assert.match(open, /\{\.\.\.handle\}/, "the chip must carry the drag listeners");
+  assert.match(jsx, /const handle = editing \? \{ ref: setNodeRef \} :/,
+    "a chip holding an open rename field must not also be a drag handle");
+
+  // A cleared name has no chip, so the one button that is left has to answer to all three.
+  const add = jsx.slice(jsx.indexOf('className="section-heading__add"'));
+  assert.match(add.slice(0, add.indexOf(">")), /\{\.\.\.handle\}/,
+    "an unnamed section would have nothing left to drag");
+});
+
 test("an unnamed section gets no pill, except while it is being named", async () => {
   const { readFile } = await import("node:fs/promises");
   const jsx = await readFile(new URL("../src/components/SectionHeading.jsx", import.meta.url), "utf8");

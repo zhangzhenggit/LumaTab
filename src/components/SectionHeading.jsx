@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CaretDown, DotsSixVertical, DotsThree } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 import { useDraggable } from "@dnd-kit/core";
 import { isCollapsed, isNamed } from "../lib/sections";
 
@@ -20,7 +20,7 @@ export function SectionHeading({
   // the very draft the user just abandoned. The flag is read once and cleared.
   const cancelled = useRef(false);
   const [draft, setDraft] = useState(section.name);
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: section.id });
+  const { listeners, setNodeRef, isDragging } = useDraggable({ id: section.id });
 
   const named = isNamed(section);
   const collapsed = isCollapsed(section);
@@ -47,38 +47,25 @@ export function SectionHeading({
     input.select();
   }, [editing]);
 
-  const controls = (
-    <>
-      {/* Collapse leads the group. It used to hang off the LEFT of the label with a negative
-          margin, which made a hovered heading read as "⌄ [pill] ··· ⠿" — three marks on two
-          sides of an object, and the one on the left looked like it belonged to the row above.
-          Every action a heading has now hangs off the same side, in the order it is used:
-          collapse, then more, then move. */}
-      {!compact && (
-        <button
-          type="button"
-          className="section-heading__caret"
-          aria-label={collapsed ? "展开分组" : "折叠分组"}
-          aria-expanded={!collapsed}
-          onClick={onToggleCollapse}
-        ><CaretDown size={13} weight="bold" /></button>
-      )}
-      <button
-        type="button"
-        className="section-heading__menu"
-        aria-label="分组操作"
-        onClick={onContextMenu}
-        onContextMenu={onContextMenu}
-      ><DotsThree size={18} weight="bold" /></button>
-      <button
-        ref={setNodeRef}
-        type="button"
-        className="section-heading__grip"
-        aria-label="拖动以移动分组"
-        {...attributes}
-        {...listeners}
-      ><DotsSixVertical size={16} weight="bold" /></button>
-    </>
+  // The chip is the handle. It shipped with a "···" menu button and a "⠿" grip hung off the
+  // heading on hover — the shape Notion, Steam and Figma use — and both were removed on sight of
+  // the real page: two marks floating beside a word, visible only on hover, to do what pressing
+  // the word can do directly. Dragging starts on the chip and the menu is the right-click, which
+  // is what a pill-shaped object already looks like it should do. `attributes` is deliberately
+  // NOT spread here: it carries role="button" and tabindex, and this span holds a real button
+  // (the name) — and with no KeyboardSensor in the tree it would buy nothing anyway.
+  // Never while the field is open: pressing into the text to select a word would otherwise
+  // start a drag and carry the whole section off mid-rename.
+  const handle = editing ? { ref: setNodeRef } : { ref: setNodeRef, ...listeners };
+
+  const caret = !compact && (
+    <button
+      type="button"
+      className="section-heading__caret"
+      aria-label={collapsed ? "展开分组" : "折叠分组"}
+      aria-expanded={!collapsed}
+      onClick={onToggleCollapse}
+    ><CaretDown size={13} weight="bold" /></button>
   );
 
   return (
@@ -104,7 +91,14 @@ export function SectionHeading({
       // because `.section-seam` — the landing indicator for a dragged section — is absolutely
       // positioned across it, and a row that shrank to hug its label would shrink the seam with
       // it. It is also what keeps `.section-heading__target` on the icon rail.
-      <span className="section-heading__pill">
+      <span
+        className="section-heading__pill"
+        // One title for the whole chip: with the two marks gone this is where the gestures are
+        // named, and a child with no title of its own inherits it.
+        title={editing ? undefined : "拖动排序 · 点击重命名 · 右键更多"}
+        onContextMenu={onContextMenu}
+        {...handle}
+      >
       {editing ? (
         <input
           ref={inputRef}
@@ -128,16 +122,14 @@ export function SectionHeading({
           <button
             type="button"
             className="section-heading__name"
-            title="点击重命名"
             onClick={onStartEdit}
-            onContextMenu={onContextMenu}
           >{named ? section.name : "未命名"}</button>
           {collapsed && <span className="section-heading__count">{count}</span>}
         </>
       )}
       </span>
       )}
-      {!compact && controls}
+      {caret}
       {compact && (
         // A heading with its name cleared keeps the break and gives back the line. The row is
         // laid out at zero height, so the two row-gaps either side of it simply meet; what sits
@@ -145,8 +137,16 @@ export function SectionHeading({
         // which is also the only way back to naming it. No pill here: an empty name is a divider,
         // and a divider with a glass chip floating on it is a caption again.
         <span className="section-heading__float">
-          <button type="button" className="section-heading__add" onClick={onStartEdit}>命名此分组</button>
-          {controls}
+          {/* With no chip to press, this button is the whole heading: it names the section, and
+              it is also what a drag and a right-click have to aim at. */}
+          <button
+            type="button"
+            className="section-heading__add"
+            title="拖动排序 · 点击命名 · 右键更多"
+            onClick={onStartEdit}
+            onContextMenu={onContextMenu}
+            {...handle}
+          >命名此分组</button>
         </span>
       )}
     </div>

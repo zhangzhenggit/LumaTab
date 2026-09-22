@@ -997,15 +997,11 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 /* Nothing above it to be spaced away from. */
 .section-heading:first-child { padding-top: 0; }
 
-/* Rename, collapse, delete and move all hang off the heading, and all of them are visible.
-   The first version had rename on a click and delete on right-click only, which is the shape
-   nobody finds: right-click is the power-user path everywhere it appears, never the only one.
-   Notion, Steam and Figma all put a menu button beside the group title on hover; Windows 10's
-   Start groups put a drag grip in the same place. Both are here, and both also answer to
-   keyboard focus so the whole feature is reachable without a pointer. */
-.section-heading__caret,
-.section-heading__menu,
-.section-heading__grip {
+/* Collapse is the only mark left beside the chip. A "···" menu and a "⠿" grip hung here for one
+   version — the shape Notion, Steam and Figma use — and on the real page they read as two loose
+   marks floating next to a word, visible only on hover, doing what pressing the word already
+   does. The chip took both jobs: it drags, and it answers to right-click. */
+.section-heading__caret {
   display: grid;
   place-items: center;
   width: 24px;
@@ -1020,17 +1016,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
   transition: opacity var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
 }
-.section-heading__grip { cursor: grab; }
-.section-heading__grip:active { cursor: grabbing; }
 .section-heading:hover .section-heading__caret,
-.section-heading:hover .section-heading__menu,
-.section-heading:hover .section-heading__grip,
-.section-heading__caret:focus-visible,
-.section-heading__menu:focus-visible,
-.section-heading__grip:focus-visible { opacity: .8; outline: none; }
-.section-heading__caret:hover,
-.section-heading__menu:hover,
-.section-heading__grip:hover { opacity: 1; background: rgba(255, 255, 255, .18); }
+.section-heading__caret:focus-visible { opacity: .8; outline: none; }
+.section-heading__caret:hover { opacity: 1; background: rgba(255, 255, 255, .18); }
 /* Collapsed is the one state that has to be legible without hovering: a section with its tiles
    gone and no visible marker of why is just a hole in the grid. */
 .section-heading--collapsed .section-heading__caret { opacity: .8; }
@@ -1066,7 +1054,12 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
      distance; the pair lands near 23% where they overlap, about half the tile's compounded 41%,
      which is what keeps a small white pane from growing a dark rim around itself. */
   box-shadow: 0 1px 2px rgba(0, 0, 0, .14), 0 4px 10px rgba(0, 0, 0, .10);
+  /* The only affordance left after the grip was removed, and the reason the word does not keep a
+     text cursor: the whole chip is the handle, and a click on it renames. */
+  cursor: grab;
 }
+.section-heading__pill:active { cursor: grabbing; }
+.section-heading--dragging .section-heading__pill { cursor: grabbing; }
 /* The chip carries its own contrast, so the shadow every caption on the wallpaper needs would
    only thicken the text. */
 .section-heading__pill .section-heading__name,
@@ -1200,7 +1193,7 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   padding: 0;
   border: 0;
   background: transparent;
-  cursor: text;
+  cursor: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: opacity var(--dur-2) var(--ease-out);
@@ -1224,8 +1217,6 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    straight on the page follow the background. */
 .newtab--light .section-heading__add,
 .newtab--light .section-heading__caret,
-.newtab--light .section-heading__menu,
-.newtab--light .section-heading__grip,
 .newtab--light .section-drop__hint,
 .newtab--light .section-add {
   color: var(--t1);
@@ -1430,10 +1421,14 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    the four marks, and a frame is exactly the part nobody needed to see. */
 .folder-preview {
   display: grid;
-  grid-template-columns: repeat(2, 24px);
-  grid-auto-rows: 24px;
+  grid-template-columns: repeat(2, 21px);
+  grid-auto-rows: 21px;
   gap: 4px;
-  padding: 4px;
+  /* The margin has to beat the gap, or the four marks read as one quilt stretched to the tile's
+     edge rather than as a cluster sitting inside it — at 4px all round, the outer corners of the
+     cluster collided with the tile's own 13.4px radius ("感觉特别挤"). 7/21/4 keeps the marks
+     within 12% of the size that made them recognisable and spends the difference on the frame. */
+  padding: 7px;
 }
 /* Each child fills its cell edge to edge. Leaving it centred at a fraction of the cell is what
    made the folder tile read as four specks — at this size the icon IS the cell. */
@@ -1441,8 +1436,8 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   display: grid;
   place-items: stretch;
   overflow: hidden;
-  /* Same curve as the tiles it previews, at the same 22.37% share of a 24px cell. */
-  border-radius: 5.4px;
+  /* Same curve as the tiles it previews, at the same 22.37% share of a 21px cell. */
+  border-radius: 4.7px;
   corner-shape: var(--icon-corner);
   /* A mini tile, with the links' own white bed and a hairline of its own. The child has to have
      a shape, because the shape is the whole message: four shapes on a neutral field say "icons
@@ -1467,9 +1462,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   border-radius: inherit;
 }
 .folder-preview__cell .brand-icon[data-fit="contain"] { padding: 2px; }
-.folder-preview__cell .letter-icon { font-size: 10.5px; font-weight: 700; }
-.folder-preview__cell .letter-icon[data-length="1"] { font-size: 13px; }
-.folder-preview__cell .letter-icon[data-length="3"] { font-size: 8px; }
+.folder-preview__cell .letter-icon { font-size: 9.5px; font-weight: 700; }
+.folder-preview__cell .letter-icon[data-length="1"] { font-size: 11.5px; }
+.folder-preview__cell .letter-icon[data-length="3"] { font-size: 7px; }
 .folder-preview__cell .letter-icon[data-length="4"] { font-size: 6px; }
 
 /* ---------- open folder ---------- */
