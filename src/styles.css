@@ -398,8 +398,10 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   flex: 0 0 auto;
   margin-bottom: 26px;
   text-align: center;
-  animation: search-in var(--dur-4) var(--ease-out) backwards;
+  animation: clock-in var(--dur-4) var(--ease-out) backwards;
 }
+/* The clock carries no backdrop-filter, so unlike the glass surfaces it can fade as one piece. */
+@keyframes clock-in { from { opacity: 0; transform: translateY(-8px); } }
 .clock__time {
   font-size: 72px;
   /* Light, not thin. Weight 100 disappears against a bright photograph at this size, and the
@@ -462,7 +464,15 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
      thing the page is built around rather than as one more item in the queue. */
   animation: search-in var(--dur-4) var(--ease-out) backwards;
 }
-@keyframes search-in { from { opacity: 0; transform: translateY(-8px); } }
+/* Transform only, on every glass surface's entrance — search bar, dialogs, the icon picker, the
+   site-access notice, the open folder. Each of these used to fade in as well, and on each the
+   fade was a visible defect: an element at opacity < 1 is composited into an offscreen group,
+   which has no backdrop to sample, so its backdrop-filter is simply not applied until the fade
+   ends — a sharp translucent pane for the whole entrance, then the blur switching on in one frame
+   ("背景还跳变一下", reported on the folder, present on all five). A transform creates no group.
+   The fade is not lost: it moves onto the contents, which carry no filter of their own. */
+@keyframes search-in { from { transform: translateY(-8px); } }
+.search > * { animation: fade-in var(--dur-4) var(--ease-out) backwards; }
 /* Focus thickens the pane rather than tinting it: more white, a brighter rim, a deeper cast. */
 .search:focus-within {
   border-color: rgba(255, 255, 255, .7);
@@ -940,9 +950,10 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
    for the duration of the animation. */
 .site-access { transform: translateX(-50%); }
 @keyframes site-access-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from { transform: translateX(-50%) translateY(-8px); }
+  to   { transform: translateX(-50%) translateY(0); }
 }
+.site-access > * { animation: fade-in var(--dur-3) var(--ease-out) backwards; }
 
 
 /* ---------- section headings ---------- */
@@ -1575,8 +1586,20 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
   animation: folder-stage-in var(--dur-2) var(--ease-out);
 }
 
+/* Scale only. This used to fade the stage in as well, and the fade was the "背景跳变一下": the
+   panel inside carries a backdrop-filter, and an ancestor at opacity < 1 makes Chrome composite
+   the whole subtree into an offscreen group — which has no backdrop to sample, so the blur is
+   simply not applied for as long as the fade runs. The panel was a sharp translucent white for
+   240ms with the grid showing straight through it, and then the blur switched on in one frame
+   when opacity reached 1. A transform makes no such group, so the glass is glass from the first
+   frame. What still fades is the content, on an element with no filter of its own (below). */
 @keyframes folder-stage-in {
-  from { opacity: 0; transform: scale(.8); }
+  from { transform: scale(.8); }
+}
+/* The softness the stage used to have, moved onto the one thing in the panel that can carry it
+   without breaking the glass. */
+.folder-stage--anchored .folder-panel__grid {
+  animation: fade-in var(--dur-2) var(--ease-out);
 }
 
 /* Visually hidden, still announced. The folder name is already on the tile directly above the
@@ -2099,7 +2122,9 @@ button, [role="link"] { -webkit-tap-highlight-color: transparent; }
 .toast--visible { opacity: 1; transform: translate(-50%, 0); }
 
 @keyframes fade-in { from { opacity: 0; } }
-@keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes dialog-in { from { transform: translateY(8px) scale(.98); } }
+.dialog > *,
+.icon-picker > * { animation: fade-in var(--dur-2) var(--ease-out) backwards; }
 
 /* Tile size is deliberately constant across desktop widths. WeTab treats it as a preference,
    not a breakpoint — a wider window earns more columns, not bigger icons, which is what keeps a

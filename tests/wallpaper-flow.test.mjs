@@ -399,3 +399,39 @@ test("the grid is capped at ten columns", async () => {
   assert.ok(cap, "--max-columns is missing");
   assert.equal(Number(cap[1]), 10);
 });
+
+// A glass surface must never fade in as a whole. An element at opacity < 1 is composited into an
+// offscreen group, which has no backdrop to sample, so its backdrop-filter is not applied until
+// the fade ends — the pane is sharp and translucent for the whole entrance and the blur switches
+// on in one frame at the end ("背景还跳变一下"). A transform creates no such group. This walks
+// every rule that carries a backdrop-filter and checks that whatever keyframes it plays never
+// touch opacity; the fade, where wanted, belongs on the contents.
+test("no glass surface animates its own opacity", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  // Two shapes of keyframe block live in this file: multi-line ones that close on a line of their
+  // own, and one-liners. The multi-line form has to demand a newline after its brace, or its lazy
+  // body runs on past every one-liner that follows it and swallows them — which is how a first
+  // version of this test passed while `dialog-in` still faded.
+  const keyframes = Object.fromEntries(
+    [...css.matchAll(/@keyframes ([\w-]+)\s*\{\n([\s\S]*?)\n\}|@keyframes ([\w-]+)\s*\{([^}]*)\}/g)]
+      .map((m) => [m[1] ?? m[3], m[2] ?? m[4]]),
+  );
+  for (const name of ["search-in", "dialog-in", "site-access-in", "folder-stage-in", "fade-in"]) {
+    assert.ok(name in keyframes, `the keyframe scan lost ${name}, so it cannot be trusted`);
+  }
+  const offenders = [];
+  for (const rule of css.matchAll(/\n((?:[.\w:>\-\s,]+))\{([^}]*)\}/g)) {
+    const [, selector, body] = rule;
+    if (!body.includes("backdrop-filter")) continue;
+    const anim = /animation:\s*([\w-]+)/.exec(body);
+    if (!anim) continue;
+    if (/opacity/.test(keyframes[anim[1]] ?? "")) offenders.push(`${selector.trim()} → ${anim[1]}`);
+  }
+  assert.deepEqual(offenders, [], "these glass surfaces fade in as a whole, which disables their blur mid-entrance");
+  // The folder is the ancestor form of the same defect, which the scan above cannot see: the
+  // animation is on .folder-stage--anchored and the backdrop-filter on .folder-panel inside it.
+  // An opacity group on the ancestor disables the descendant's blur just the same — this was the
+  // one actually reported.
+  assert.doesNotMatch(keyframes["folder-stage-in"], /opacity/,
+    "the folder stage must scale in without fading — its panel's blur is off for the whole fade otherwise");
+});
